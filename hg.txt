@@ -1,0 +1,10 @@
+hg addremove <other flags>
+
+hg help addremove
+hg update: similar to git checkout
+hg merge
+hg resolve
+hg incoming
+hg pull
+
+tips: don't use branches in hg. Use bookmark instead if neccessary

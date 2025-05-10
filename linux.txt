@@ -1,0 +1,1 @@
+update-alternatives --config <name>: choose different vesions of alternatives

@@ -1,0 +1,19 @@
+C-x C-f: open a file
+C-x u: undo
+C-a: go to the beginning of line
+C-k: remove a line, start from the current cursor
+C-x C-c: quit
+C-x C-s: save
+C-w: cut
+M-w: copy
+C-y: pastes
+C-s: search, then C-s for next match
+C-r: search backward
+M-x replace-string: replace
+A-/: auto complete
+C-x o: go to other window
+C-x <number>: split window
+M-;: wrap the block in comment
+C-x k: kill buffer
+M-x term: open terminal
+M-x bytecode-recompile-directory: recompile emacs lisp code (emacs package)

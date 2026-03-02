@@ -1,1 +1,2 @@
 update-alternatives --config <name>: choose different vesions of alternatives
+find <repo> -maxdepth 1 -type f -name <pattern>: find files with pattern in the current directory

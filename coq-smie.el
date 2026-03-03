@@ -51,7 +51,12 @@
 ;     ,@body
 ;     (message "%.06f" (float-time (time-since time)))))
 
-(defcustom coq-smie-monadic-tokens '((";;" . ";; monadic")("do" . "let monadic")("<-" . "<- monadic")(";" . "in monadic"));
+(defcustom coq-smie-monadic-tokens
+  '((";;" . ";; monadic")
+    ("do" . "do monadic")
+    ("<-" . "<- monadic")
+    (";" . "; monadic")
+    (";;;" . ";;; monadic"));
   "This contains specific indentation token pairs, similar to
 `coq-smie-user-tokens' but dedicated to monadic operators. These
 tokens have no builtin syntax except the one defined by this
@@ -63,7 +68,7 @@ CompCert (do x <- e ; e) styles.
 There are two types of monadic syntax with specific tokens: one
 with a starting token (like do):
 
-  \"let monadic\" E \"<- monadic\" E \"in monadic\" E
+  \"do monadic\" E \"<- monadic\" E \"; monadic\" E
 
 and the other without:
 
@@ -247,14 +252,25 @@ the token of \".\" is simply \".\"."
      ((equal tok "with")
       (coq-smie-find-unclosed-match-backward)
       (coq-smie-find-unclosed-match-backward))
-     (t t) ;; all variants of match
-     )))
+     (t tok))))
+
+(defun coq-smie-find-fix-backward ()
+  (let ((tok (coq-smie-search-token-backward '("with" "for" "fix" "."))))
+    (cond
+     ((null tok) nil)
+     ((equal tok ".") nil)
+     ((equal tok "for") nil)
+     ((equal tok "with") (coq-smie-find-fix-backward))
+     (t tok))))
 
 ;; point supposed to be at start of the "with"
-(defun coq-smie-with-deambiguate()
+(defun coq-smie-with-deambiguate ()
   (let ((p (point)))
     (if (coq-smie-find-unclosed-match-backward)
-	"with match"
+        "with match"
+      ;; (goto-char p)
+      ;; (if (coq-smie-find-fix-backward)
+      ;; "with fix"
       (goto-char p)
       (coq-find-real-start)
       (cond
@@ -262,8 +278,6 @@ the token of \".\" is simply \".\"."
        ((looking-at "\\(Co\\)?Fixpoint\\|Function\\|Program\\|Lemma\\|Theorem\\|Scheme") "with fixpoint")
        ((looking-at "Module\\|Declare") "with module")
        (t "with")))))
-
-
 
 ;; A variant of smie-default-backward-token that recognize "." and ";"
 ;; as single token even if glued at the end of another symbols. We
@@ -597,7 +611,8 @@ The point should be at the beginning of the command name."
          (cmdstrt (save-excursion (coq-find-real-start)))
          (corresp (coq-smie-search-token-backward
 		   '("let" "Inductive" "CoInductive" "{|" "." "with" "Module" "where"
-                     "Equations")
+                     "Equations" "fix"
+		     )
 		   cmdstrt '((("let" "with") . ":=")))))
     (cond
      ((member corresp '("Equations")) ":= equations")
@@ -606,6 +621,8 @@ The point should be at the beginning of the command name."
 	(cond ;; recursive call if the with found is actually et with match
 	 ((equal corresptok "with match") (coq-smie-:=-deambiguate))
 	 ((equal corresptok "with inductive") ":= inductive")
+	 ((equal corresptok "with fixpoint") ":= fixpoint")
+	 ;; ((equal corresptok "with fix") ":= fix")
 	 ((equal corresptok "with module") ":= with module")
 	 (t ":=")
 	 )))
@@ -617,12 +634,13 @@ The point should be at the beginning of the command name."
 	  ":= module")))
      ((member corresp '("Inductive" "CoInductive" "Variant")) ":= inductive")
      ((equal corresp "let") ":= let")
+     ((equal corresp "fix") ":= fix")
      ((equal corresp "where") ":= inductive") ;; inductive or fixpoint, nevermind
      ((or (eq ?\{ (char-before))) ":= record")
      ((equal (point) cmdstrt)
       ;; we reached the command start: either we were in an Equation,
       ;; or the ":=" was inpatter of an Ltac match (pattern the form
-      ;; "| H: T := t |- _"). Toherwise we are probably in a Definition.
+      ;; "| H: T := t |- _"). Toherwise we are probably in a Definition
       (if (or (looking-at "Equations\\|match\\|let")) ":=" ":= def"))
      (t ":="))))
 
@@ -1124,21 +1142,34 @@ Typical values are 2 or 4."
 (defconst coq-smie-grammar
   (smie-prec2->grammar
    (smie-bnf->prec2
-    '((exp
-       (exp ":= equations" exp) (exp ":= def" exp)
-       (exp ":=" exp) (exp ":= inductive" exp)
+    '((ident)
+      (exp
+       (exp ":= equations" exp)
+       (exp ":= def" exp)
+       (exp ":= fixpoint" exp)
+       ;; (exp ":= fix" exp)
+       (exp ":= inductive" exp)
+       (exp ":=" exp)
        (exp "||" exp) (exp "|" exp) (exp "=>" exp) (exp "; equations" exp)
        (exp "xxx provedby" exp)
        (exp "as morphism" exp)
        (exp "with signature" exp)
        ("match" matchexp "with match" exp "end") ;expssss
        ("let" assigns "in let" exp)
-       ("let monadic" assigns "in monadic" exp)
-       ;;("eval in" assigns "in eval" exp) disabled
-       ("fun" exp "=> fun" exp) ("if" exp "then" exp "else" exp)
+       ;; ("do monadic" assigns "; monadic" exp)
+       ;; ("eval in" assigns "in eval" exp) disabled
+       ;; ("fix" exp)
+       ;; (exp "with fix" exp)
+       ;; (exp "for" ident)
+       ("fix" exp ":= fix" exp)
+       ("fun" exp "=> fun" exp)
+       ("if" exp "then" exp "else" exp)
        ("quantif exists" exp ", quantif" exp)
        ("forall" exp ", quantif" exp)
-       (exp "<- monadic" exp) (exp ";; monadic" exp)
+       (exp ";;; monadic" exp)
+       (exp ";; monadic" exp)
+       (exp "; monadic" exp)
+       (exp "<- monadic" exp)
        ("(" exp ")") ("{|" exps "|}") ("{" exps "}")
        (exp "; tactic" exp) (exp "in tactic" exp) (exp "as" exp)
        (exp "by" exp) (exp "with" exp) (exp "|-" exp)
@@ -1220,15 +1251,19 @@ Typical values are 2 or 4."
       (assoc "---- bullet") (assoc "++++ bullet") (assoc "**** bullet")
       (assoc ".")
       (assoc "with inductive" "with fixpoint" "where"))
-    '((nonassoc "Com start") (assoc ":= equations")
-      (assoc ":= def" ":= inductive")
+    '((nonassoc "Com start")
+      ;; (nonassoc "fix")
+      (assoc ":= equations")
+      (assoc ":= def" ":= inductive" ":= fixpoint")
       (left "|") (assoc "; equations") (assoc "=>") (assoc ":=")
       (assoc "as morphism")
       (assoc "xxx provedby")
       (assoc "with signature")
       (assoc "with match")
-      (assoc "in let" "in monadic")
-      (assoc "in eval") (left "=> fun") (left ", quantif") (assoc "then")
+      (assoc "in let")
+      (assoc "in eval")
+      (nonassoc ":= fix")
+      (left "=> fun") (left ", quantif") (assoc "then")
       (assoc "|| tactic") ;; FIXME: detecting "+ tactic" and "|| tactic" seems impossible
       (left "; tactic") (assoc "in tactic") (assoc "as" "by") (assoc "with")
       (assoc "|-") (assoc ":" ":<") (left ",")
@@ -1239,17 +1274,25 @@ Typical values are 2 or 4."
       ;; <{ .. }>\n exp \n<{ ... }> indent the two assertions at the same column.
       (assoc "==") (assoc "=") (left "<" ">" "<=" ">=" "<>")
       (assoc "=?") (assoc "<=?") (assoc "<?")
-      (assoc ";; monadic") (assoc "<- monadic")
+      (assoc ";;; monadic")
+      (assoc ";; monadic")
+      (assoc "; monadic")
+      (assoc "<- monadic")
       (assoc "^")
       (assoc "||") ;; FIXME: detecting "+ tactic" and "|| tactic" seems impossible
       ;; this make indentation as expected.
       (left "+" "-") (left "*") (left "&&")
+      ;; (assoc "with fix")
+      ;; (left "for")
+      ;; (assoc ":= fix")
       (assoc ": ltacconstr") (assoc ". selector"))
     '((assoc ":" ":<") (left "<"))
     '((assoc "Module def")
       (assoc "with module" "module nodecl") (assoc ":= module")
       (assoc ":= with module")  (assoc ":" ":<"))
-    '((assoc ":= def") (assoc "; record") (assoc ":= record"))))
+    '((assoc ":= def")
+      (assoc "; record")
+      (assoc ":= record"))))
   "Parsing table for Coq.  See `smie-grammar'.")
 ;; FIXME:
 ; Record rec:Set :=     {
@@ -1546,7 +1589,7 @@ KIND is the situation and TOKEN is the thing w.r.t which the rule applies."
         (`(:elem . basic) (or coq-indent-basic (bound-and-true-p proof-indent) 2))
         (`(:elem . arg)  (if (smie-rule-prev-p "} subproof") 0 nil)) ;; hack: "{} {}"" not an application
         (`(:close-all . ,_) t)
-        (`(:list-intro . ,_) (member token '("fun" "forall" "quantif exists" "with"))) ;; "Com start"
+        (`(:list-intro . ,_) (member token '("fun" "fix" "forall" "quantif exists" "with"))) ;; "Com start"
         (`(:after . ,_) ;; indent relative to token (parent of token at point).
          (pcase (coq-indent-categorize-token-after token)
            ("} subproof" 0) ;;shouldn't be captured by (:elem . args)?
@@ -1554,12 +1597,13 @@ KIND is the situation and TOKEN is the thing w.r.t which the rule applies."
            (". modulestart" coq-indent-modulestart)
            ;; decrement indentation when hanging 
            ((and (or "tactic infix" "after :=") (guard (or (hang-p) (smie-rule-bolp)))) 0)
-           ((and "->" (guard (hang-p))) 0) ((or ":=" "with inductive") 2)
+           ((and "->" (guard (hang-p))) 0)
+	   ((or ":=" "with inductive") 2)
            ((and "<->" (guard (hang-p))) 0)
            ((and "/\\" (guard (hang-p))) 0)
            ((and "\\/" (guard (hang-p))) 0)
            ((and "=" (guard (hang-p))) 0)
-           ((or "." "; equations" "in let" "in monadic" ";; monadic") 0)
+           ((or "." "; equations" "in let" "; monadic" ";; monadic" ";;; monadic") 0)
            ((and "; tactic" (guard (hang-p)) (guard (not (parent-p "Com start")))) 0)
            ("; tactic" 2);; only applies "after" so when ";" is alone at its line
            ((guard (string-match "^[^][:alnum:](){}\[]" token)) 2); guessing infix operator.
@@ -1576,11 +1620,16 @@ KIND is the situation and TOKEN is the thing w.r.t which the rule applies."
              ("before :=" (parent 2)) ;; ":= xxx" always introduced by a parent
              ("tactic infix" (parent 2))
              ("|" (cond ((parent-p ":= inductive" ":= equations") -2)
-                        (t 0)));((parent-p "|") 0)
+                        (t 0)))
+	     ;; ((parent-p "|") 0)
              ;; align quantifiers with the previous one
              ((and(or "forall" "quantif exists")(guard (parent-p "forall" "quantif exists")))
               (parent))
+	     ((and "fix" (guard (parent-p "let"))) (parent))
              ((and(or "fun")(guard (parent-p "fun"))) (parent))
+	     ;; ((and "with fix" (guard (parent-p "fix"))) (parent))
+	     ;; ((and "for" (guard (parent-p "with fix"))) (parent))
+	     ;; ((and(or "fix")(guard (parent-p "fix"))) (parent))
              ;; indent on level after a ";" but only at command level.
              ((and "; tactic" (guard (parent-p "Com start"))) (parent))
              ("; record" 0); is also a smie-rule-separator

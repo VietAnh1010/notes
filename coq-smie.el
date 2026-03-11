@@ -244,40 +244,33 @@ the token of \".\" is simply \".\"."
     (buffer-substring (point) p)))
 
 
-(defun coq-smie-find-unclosed-match-backward ()
-  (let ((tok (coq-smie-search-token-backward '("with" "match" "lazymatch" "multimatch" "lazy_match" "mult_match" "."))))
-    (cond
-     ((null tok) nil)
-     ((equal tok ".") nil)
-     ((equal tok "with")
-      (coq-smie-find-unclosed-match-backward)
-      (coq-smie-find-unclosed-match-backward))
-     (t tok))))
+(defun coq-smie-find-unclosed-match-backward (&optional bound)
+  (let ((tok (coq-smie-search-token-backward
+              '("match" "lazymatch" "multimatch" "lazy_match" "multi_match" ".")
+              bound
+              '((("match" "lazymatch" "multimatch" "lazy_match" "mult_match") . "end")))))
+    (if (equal tok ".") nil tok)))
 
-(defun coq-smie-find-fix-backward ()
-  (let ((tok (coq-smie-search-token-backward '("with" "for" "fix" "."))))
-    (cond
-     ((null tok) nil)
-     ((equal tok ".") nil)
-     ((equal tok "for") nil)
-     ((equal tok "with") (coq-smie-find-fix-backward))
-     (t tok))))
+(defun coq-smie-find-fix-backward (&optional bound)
+  (coq-smie-search-token-backward '("fix" ".") bound))
 
 ;; point supposed to be at start of the "with"
 (defun coq-smie-with-deambiguate ()
   (let ((p (point)))
     (if (coq-smie-find-unclosed-match-backward)
         "with match"
-      ;; (goto-char p)
-      ;; (if (coq-smie-find-fix-backward)
-      ;; "with fix"
       (goto-char p)
-      (coq-find-real-start)
-      (cond
-       ((looking-at "\\(Co\\)?Inductive") "with inductive")
-       ((looking-at "\\(Co\\)?Fixpoint\\|Function\\|Program\\|Lemma\\|Theorem\\|Scheme") "with fixpoint")
-       ((looking-at "Module\\|Declare") "with module")
-       (t "with")))))
+      (let* ((cmdstrt (save-excursion (coq-find-real-start)))
+             (fixtok (coq-smie-find-fix-backward cmdstrt)))
+        (cond
+         ((equal fixtok "fix") "with fix")
+         (t
+          (goto-char cmdstrt)
+          (cond
+           ((looking-at "\\(Co\\)?Inductive") "with inductive")
+           ((looking-at "\\(Co\\)?Fixpoint\\|Function\\|Program\\|Lemma\\|Theorem\\|Scheme") "with fixpoint")
+           ((looking-at "Module\\|Declare") "with module")
+           (t "with"))))))))
 
 ;; A variant of smie-default-backward-token that recognize "." and ";"
 ;; as single token even if glued at the end of another symbols. We
@@ -621,7 +614,7 @@ The point should be at the beginning of the command name."
          ((equal corresptok "with match") (coq-smie-:=-deambiguate))
          ((equal corresptok "with inductive") ":= inductive")
          ((equal corresptok "with fixpoint") ":= fixpoint")
-         ;; ((equal corresptok "with fix") ":= fix")
+         ((equal corresptok "with fix") ":= fix")
          ((equal corresptok "with module") ":= with module")
          (t ":="))))
      ((equal corresp "Module")
@@ -925,17 +918,16 @@ The point should be at the beginning of the command name."
       (save-excursion
         (let ((prev-interesting
                (coq-smie-search-token-backward
-                '("let" "match" "lazymatch" "multimatch" "lazy_match" "mult_match" ;"eval" should be "eval in" but this is not supported by search-token-backward
-                  "." )
+                '("let" "match" "lazymatch" "multimatch" "lazy_match" "mult_match" ".")
+                ;; "eval" should be "eval in" but this is not supported by search-token-backward
                 nil
-                '((("match" "lazymatch" "multimatch" "lazy_match" "mult_match")
-                   . "with")
-                  (("let") ;"eval"
-                   . "in")))))
+                '((("match" "lazymatch" "multimatch" "lazy_match" "mult_match") . "end")
+                  (("let") . "in")))))
           (cond
            ((member prev-interesting '("." nil)) "in tactic")
            ((equal prev-interesting "let") "in let")
-                                        ;((equal prev-interesting "eval in") "in eval"); not detectable by coq-smie-search-token-backward
+           ;; ((equal prev-interesting "eval in") "in eval")
+           ;; not detectable by coq-smie-search-token-backward
            ((equal prev-interesting "match") "in match")
            (t "in tactic")))))
 
@@ -984,7 +976,7 @@ The point should be at the beginning of the command name."
      ;; recognized as such by the grammar.
      ((and (coq-is-at-command-real-start)
            (> (length tok) 0)
-           (not (member tok '("match" "lazymatch" "let"))) ;; match are already captured
+           (not (member tok '("match" "lazymatch" "let" "fix"))) ;; match are already captured
            (or (string= "Lu" (get-char-code-property (aref tok 0) 'general-category))
                (string= "Ll" (get-char-code-property (aref tok 0) 'general-category))))
       "Com start")
@@ -1147,7 +1139,6 @@ Typical values are 2 or 4."
        (exp ":= equations" exp)
        (exp ":= def" exp)
        (exp ":= fixpoint" exp)
-       ;; (exp ":= fix" exp)
        (exp ":= inductive" exp)
        (exp ":=" exp)
        (exp "||" exp) (exp "|" exp) (exp "=>" exp) (exp "; equations" exp)
@@ -1158,10 +1149,7 @@ Typical values are 2 or 4."
        ("let" assigns "in let" exp)
        ;; ("do monadic" assigns "; monadic" exp)
        ;; ("eval in" assigns "in eval" exp) disabled
-       ;; ("fix" exp)
-       ;; (exp "with fix" exp)
-       ;; (exp "for" ident)
-       ("fix" exp ":= fix" exp)
+       ("fix" fix-body)
        ("fun" exp "=> fun" exp)
        ("if" exp "then" exp "else" exp)
        ("quantif exists" exp ", quantif" exp)
@@ -1198,7 +1186,14 @@ Typical values are 2 or 4."
                 (exp "return match" exp) )
       (exps (affectrec) (exps "; record" exps))
       (affectrec (exp ":= record" exp))
-      (assigns  (exp ":= let" exp) (exp "<- monadic" exp))
+      (fix-body (fix-recursive)
+                (fix-recursive "for" exp))
+      (fix-recursive (fix-single)
+                     (fix-single "with fix" fix-recursive))
+      (fix-single (exp ":= fix" exp))
+      (assigns ("fix" fix-body)
+               (exp ":= let" exp)
+               (exp "<- monadic" exp))
       ;;(assigns "; record" assigns)
 
       (moduledef (moduledecl ":= module" exp))
@@ -1219,7 +1214,6 @@ Typical values are 2 or 4."
             (exp))
 
       (commands (commands "." commands)
-                                        ;(commands ". sameline" commands)
                 (commands "- bullet" commands)
                 (commands "+ bullet" commands)
                 (commands "* bullet" commands)
@@ -1252,17 +1246,16 @@ Typical values are 2 or 4."
       (assoc ".")
       (assoc "with inductive" "with fixpoint" "where"))
     '((nonassoc "Com start")
-      ;; (nonassoc "fix")
+      (nonassoc "fix")
+      (assoc "with match" "with fix" "for" ":= fix")
       (assoc ":= equations")
       (assoc ":= def" ":= inductive" ":= fixpoint")
       (left "|") (assoc "; equations") (assoc "=>") (assoc ":=")
       (assoc "as morphism")
       (assoc "xxx provedby")
       (assoc "with signature")
-      (assoc "with match")
       (assoc "in let")
       (assoc "in eval")
-      (nonassoc ":= fix")
       (left "=> fun") (left ", quantif") (assoc "then")
       (assoc "|| tactic") ;; FIXME: detecting "+ tactic" and "|| tactic" seems impossible
       (left "; tactic") (assoc "in tactic") (assoc "as")
@@ -1626,8 +1619,10 @@ KIND is the situation and TOKEN is the thing w.r.t which the rule applies."
              ;; align quantifiers with the previous one
              ((and(or "forall" "quantif exists")(guard (parent-p "forall" "quantif exists")))
               (parent))
+             ((and "with fix" (guard (parent-p "fix" "with fix"))) (parent))
+             ((and "for" (guard (parent-p "fix" "with fix"))) (parent))
              ((and "fix" (guard (parent-p "let"))) (parent))
-             ((and(or "fun")(guard (parent-p "fun"))) (parent))
+             ((and "fun" (guard (parent-p "fun"))) (parent))
              ;; ((and "with fix" (guard (parent-p "fix"))) (parent))
              ;; ((and "for" (guard (parent-p "with fix"))) (parent))
              ;; ((and(or "fix")(guard (parent-p "fix"))) (parent))

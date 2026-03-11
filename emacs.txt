@@ -13,9 +13,13 @@ C-x o: go to other window
 C-x <number>: split window
 C-x 4 f: open a new file in a separate buffer
 C-x k: kill buffer
+C-u 0 <command>: pass 0 as argument to <command>
 M-w: copy
 M-x replace-string: replace
 M-;: wrap the block in comment
 M-x term: open terminal, using terminal bindings
 M-x shell: open terminal, using emacs bindings
 M-x bytecode-recompile-directory: recompile emacs lisp code (emacs package)
+M-: (colon): evaluate emacs lisp expression
+
+(add-to-list 'load-path "."): add working directory to load path (for bytecode compilation, etc.)

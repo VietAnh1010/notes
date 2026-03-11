@@ -244,19 +244,15 @@ the token of \".\" is simply \".\"."
     (buffer-substring (point) p)))
 
 
-(defun coq-smie-find-unclosed-match-backward ()
-  (let ((tok (coq-smie-search-token-backward '("with" "match" "lazymatch" "multimatch" "lazy_match" "mult_match" "."))))
-    (cond
-     ((null tok) nil)
-     ((equal tok ".") nil)
-     ((equal tok "with")
-      (coq-smie-find-unclosed-match-backward)
-      (coq-smie-find-unclosed-match-backward))
-     (t tok))))
+(defun coq-smie-find-unclosed-match-backward (&optional bound)
+  (let ((tok (coq-smie-search-token-backward
+              '("match" "lazymatch" "multimatch" "lazy_match" "multi_match" ".")
+              bound
+              '((("match" "lazymatch" "multimatch" "lazy_match" "mult_match") . "end")))))
+    (if (equal tok ".") nil tok)))
 
 (defun coq-smie-find-fix-backward (&optional bound)
-  (coq-smie-search-token-backward '("fix" ".") bound
-                                  '(("fix" . "for"))))
+  (coq-smie-search-token-backward '("fix" ".") bound))
 
 ;; point supposed to be at start of the "with"
 (defun coq-smie-with-deambiguate ()
@@ -269,8 +265,7 @@ the token of \".\" is simply \".\"."
         (cond
          ((equal fixtok "fix") "with fix")
          (t
-          (goto-char p)
-          (coq-find-real-start)
+          (goto-char cmdstrt)
           (cond
            ((looking-at "\\(Co\\)?Inductive") "with inductive")
            ((looking-at "\\(Co\\)?Fixpoint\\|Function\\|Program\\|Lemma\\|Theorem\\|Scheme") "with fixpoint")
@@ -923,17 +918,16 @@ The point should be at the beginning of the command name."
       (save-excursion
         (let ((prev-interesting
                (coq-smie-search-token-backward
-                '("let" "match" "lazymatch" "multimatch" "lazy_match" "mult_match" ;"eval" should be "eval in" but this is not supported by search-token-backward
-                  "." )
+                '("let" "match" "lazymatch" "multimatch" "lazy_match" "mult_match" ".")
+                ;; "eval" should be "eval in" but this is not supported by search-token-backward
                 nil
-                '((("match" "lazymatch" "multimatch" "lazy_match" "mult_match")
-                   . "with")
-                  (("let") ;"eval"
-                   . "in")))))
+                '((("match" "lazymatch" "multimatch" "lazy_match" "mult_match") . "end")
+                  (("let") . "in")))))
           (cond
            ((member prev-interesting '("." nil)) "in tactic")
            ((equal prev-interesting "let") "in let")
-                                        ;((equal prev-interesting "eval in") "in eval"); not detectable by coq-smie-search-token-backward
+           ;; ((equal prev-interesting "eval in") "in eval")
+           ;; not detectable by coq-smie-search-token-backward
            ((equal prev-interesting "match") "in match")
            (t "in tactic")))))
 
@@ -1145,7 +1139,6 @@ Typical values are 2 or 4."
        (exp ":= equations" exp)
        (exp ":= def" exp)
        (exp ":= fixpoint" exp)
-       ;; (exp ":= fix" exp)
        (exp ":= inductive" exp)
        (exp ":=" exp)
        (exp "||" exp) (exp "|" exp) (exp "=>" exp) (exp "; equations" exp)
@@ -1198,8 +1191,9 @@ Typical values are 2 or 4."
       (fix-recursive (fix-single)
                      (fix-single "with fix" fix-recursive))
       (fix-single (exp ":= fix" exp))
-      (assigns  (exp ":= let" exp) (exp "<- monadic" exp)
-                ("fix" fix-body))
+      (assigns ("fix" fix-body)
+               (exp ":= let" exp)
+               (exp "<- monadic" exp))
       ;;(assigns "; record" assigns)
 
       (moduledef (moduledecl ":= module" exp))
@@ -1220,7 +1214,6 @@ Typical values are 2 or 4."
             (exp))
 
       (commands (commands "." commands)
-                                        ;(commands ". sameline" commands)
                 (commands "- bullet" commands)
                 (commands "+ bullet" commands)
                 (commands "* bullet" commands)

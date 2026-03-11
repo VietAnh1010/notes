@@ -44,12 +44,12 @@
 (require 'coq-syntax)                   ;For coq-keywords-save-strict!
 (require 'smie)
 
-; debugging
-;(defmacro measure-time (&rest body)
-;  "Measure the time it takes to evaluate BODY."
-;  `(let ((time (current-time)))
-;     ,@body
-;     (message "%.06f" (float-time (time-since time)))))
+                                        ; debugging
+                                        ;(defmacro measure-time (&rest body)
+                                        ;  "Measure the time it takes to evaluate BODY."
+                                        ;  `(let ((time (current-time)))
+                                        ;     ,@body
+                                        ;     (message "%.06f" (float-time (time-since time)))))
 
 (defcustom coq-smie-monadic-tokens
   '((";;" . ";; monadic")
@@ -76,7 +76,7 @@ and the other without:
 
 Th goal of this variable is to give concrete syntax to these
 \"xxx monadic\" tokens."
- :type '(alist :key-type string :value-type string)
+  :type '(alist :key-type string :value-type string)
   :group 'coq)
 
 (defcustom coq-smie-user-tokens nil
@@ -109,13 +109,13 @@ For monadic notations, see `coq-smie-monadic-tokens' instead."
   (if (fboundp 'string-suffix-p)
       'string-suffix-p
     (lambda (str1 str2 &optional ignore-case)
-  "Return non-nil if STR1 is a prefix of STR2.
+      "Return non-nil if STR1 is a prefix of STR2.
 If IGNORE-CASE is non-nil, the comparison is done without paying
 attention to case differences."
-  (let ((begin2 (- (length str2) (length str1)))
-	(end2 (length str2)))
-    (when (< begin2 0) (setq begin2 0)) ; to avoid negative begin2
-    (eq t (compare-strings str1 nil nil str2 begin2 end2 ignore-case))))))
+      (let ((begin2 (- (length str2) (length str1)))
+            (end2 (length str2)))
+        (when (< begin2 0) (setq begin2 0)) ; to avoid negative begin2
+        (eq t (compare-strings str1 nil nil str2 begin2 end2 ignore-case))))))
 
 
 
@@ -128,7 +128,7 @@ attention to case differences."
   (and (not (string-equal ".." s)) ;; string-equal because ... should return t.
        (string-match "[^[:word:]]\\.\\'" s)))
 
-; for debuging
+                                        ; for debuging
 (defun coq-time-indent ()
   (interactive)
   (let ((deb (float-time)))
@@ -183,16 +183,16 @@ attention to case differences."
 (defun coq-smie-is-inside-parenthesized-tactic ()
   (and (coq-smie-is-tactic) ;; fragile (uppercase test only)
        (save-excursion
-	 (let ((pt (point))
-	       ;; we need to go one character forwardto avoid the
-	       ;; coq-smie-search-token-backward below to fail on "{"
-	       (strt (and (coq-script-parse-cmdend-backward)
-			  (+ 1 (point)))))
-	   (goto-char pt)
-	   ;; looking for a dummy token to see if we fail before reaching
-	   ;; strt, which means that we were in a prenthesized expression.
-	   (coq-smie-search-token-backward '("#dummy#") strt)
-	   (> (point) strt)))))
+         (let ((pt (point))
+               ;; we need to go one character forwardto avoid the
+               ;; coq-smie-search-token-backward below to fail on "{"
+               (strt (and (coq-script-parse-cmdend-backward)
+                          (+ 1 (point)))))
+           (goto-char pt)
+           ;; looking for a dummy token to see if we fail before reaching
+           ;; strt, which means that we were in a prenthesized expression.
+           (coq-smie-search-token-backward '("#dummy#") strt)
+           (> (point) strt)))))
 
 (defun coq-smie-.-deambiguate ()
   "Return the token of the command terminator of the current command.
@@ -213,13 +213,13 @@ the token of \".\" is simply \".\"."
       (cond
        ((looking-at "BeginSubproof\\>") ". proofstart")
        ((looking-at "Proof\\>")
-	(forward-char 5)
+        (forward-char 5)
         (forward-comment (point-max))
-	(if (looking-at "\\.\\|with\\|using") ". proofstart" "."))
+        (if (looking-at "\\.\\|with\\|using") ". proofstart" "."))
        ((or (looking-at "Next\\s-+Obligation\\>")
-	    (coq-smie-detect-goal-command))
-	(save-excursion
-	  (goto-char (+ p 1))
+            (coq-smie-detect-goal-command))
+        (save-excursion
+          (goto-char (+ p 1))
           (let ((tok (smie-default-forward-token)))
             (cond
              ;; If the next token is "Proof", then the current command does
@@ -232,7 +232,7 @@ the token of \".\" is simply \".\"."
              ((member tok '("Let" "Definition" "Inductive" "Fixpoint")) ".")
              (t ". proofstart")))))
        ((equal (coq-smie-module-deambiguate) "Module start")
-	". modulestart")
+        ". modulestart")
        (t ".")))))
 
 
@@ -326,35 +326,35 @@ inside parenthesis)."
   (unless end (setq end (point-max)))
   (condition-case nil
       (catch 'found
-	(while (< (point) end)
-	  ;; The default lexer is faster and is good enough for our needs.
-	  (let* ((next (coq-forward-token-fast-nogluing-dot-friends))
-		 (parop (assoc next ignore-between)))
-	    ; if we find something to ignore, we directly jump to the
-	    ; corresponding closer
-	    (if parop
-		(let ((parops ; corresponding matcher may be a list
-		       (if (listp parop) (cdr parop)
-			 (cons (cdr parop) nil)))) ; go to corresponding closer
-		  (when (member
-			 (coq-smie-search-token-forward
-			  (append parops (cons "." nil))
-			  end ignore-between)
-			 (cons "." nil))
-		  (goto-char (point))
-		  next))
-	      ;; Do not consider "." when not followed by a space
-	      (when (or (not (equal next ".")) ; see backward version
-			(looking-at "[[:space:]]"))
-		(cond
-		 ((and (zerop (length next))
-		       (or (equal (point) (point-max)) ; protecting char-after next line
-			   (equal (char-syntax ?\)) (char-syntax (char-after)))))
-		  (throw 'found nil))
-		 ((zerop (length next)) ;; capture other characters than closing parent
-		  ;; don't use smmie-forward-sexp here
-		  (let ((forward-sexp-function nil)) (forward-sexp 1)))
-		 ((member next tokens) (throw 'found next))))))))
+        (while (< (point) end)
+          ;; The default lexer is faster and is good enough for our needs.
+          (let* ((next (coq-forward-token-fast-nogluing-dot-friends))
+                 (parop (assoc next ignore-between)))
+                                        ; if we find something to ignore, we directly jump to the
+                                        ; corresponding closer
+            (if parop
+                (let ((parops ; corresponding matcher may be a list
+                       (if (listp parop) (cdr parop)
+                         (cons (cdr parop) nil)))) ; go to corresponding closer
+                  (when (member
+                         (coq-smie-search-token-forward
+                          (append parops (cons "." nil))
+                          end ignore-between)
+                         (cons "." nil))
+                    (goto-char (point))
+                    next))
+              ;; Do not consider "." when not followed by a space
+              (when (or (not (equal next ".")) ; see backward version
+                        (looking-at "[[:space:]]"))
+                (cond
+                 ((and (zerop (length next))
+                       (or (equal (point) (point-max)) ; protecting char-after next line
+                           (equal (char-syntax ?\)) (char-syntax (char-after)))))
+                  (throw 'found nil))
+                 ((zerop (length next)) ;; capture other characters than closing parent
+                  ;; don't use smmie-forward-sexp here
+                  (let ((forward-sexp-function nil)) (forward-sexp 1)))
+                 ((member next tokens) (throw 'found next))))))))
     (scan-error nil)))
 
 
@@ -370,37 +370,37 @@ search.
 Careful: the search for a opener stays inside the current command (and
 inside parenthesis)."
   (unless end (setq end (point-min)))
-    (condition-case nil
-	(catch 'found
-	  (while (> (point) end)
-	    ;; The default lexer is faster and is good enough for our needs.
-	    (let* ((next (coq-backward-token-fast-nogluing-dot-friends))
-		   (parop (rassoc next ignore-between)))
-	      ; if we find something to ignore, we directly jump to the
-	      ; corresponding openner
-	      (if parop
-		  (let ((parops ; corresponding matcher may be a list
-			 (if (listp (car parop)) (car parop) (cons (car parop) nil))))
-		    ; go to corresponding closer or meet "."
-		    (coq-smie-search-token-backward
-		     ;; Add "." at the head of the list, since
-		     ;; it's more efficient and ordering is ignored anyway.
-		     (cons "." parops)
-		     end ignore-between))
-		;; Do not consider "." when not followed by a space
-		;(message "SPACE?: %S , %S , %S" next next (looking-at ".[[:space:]]"))
-		(when (or (not (equal next "."))
-			  (looking-at "\\.[[:space:]]"))
-		  (cond
-		   ((and (zerop (length next))
-			 (or (equal (point) (point-min)) ; protecting char-before next line
-			     (equal (char-syntax ?\() (char-syntax (char-before)))))
-		    (throw 'found nil))
-		   ((zerop (length next))
-		    ;; don't use smmie-forward-sexp here
-		    (let ((forward-sexp-function nil)) (forward-sexp -1)))
-		   ((member next tokens) (throw 'found next))))))))
-      (scan-error nil)))
+  (condition-case nil
+      (catch 'found
+        (while (> (point) end)
+          ;; The default lexer is faster and is good enough for our needs.
+          (let* ((next (coq-backward-token-fast-nogluing-dot-friends))
+                 (parop (rassoc next ignore-between)))
+                                        ; if we find something to ignore, we directly jump to the
+                                        ; corresponding openner
+            (if parop
+                (let ((parops ; corresponding matcher may be a list
+                       (if (listp (car parop)) (car parop) (cons (car parop) nil))))
+                                        ; go to corresponding closer or meet "."
+                  (coq-smie-search-token-backward
+                   ;; Add "." at the head of the list, since
+                   ;; it's more efficient and ordering is ignored anyway.
+                   (cons "." parops)
+                   end ignore-between))
+              ;; Do not consider "." when not followed by a space
+                                        ;(message "SPACE?: %S , %S , %S" next next (looking-at ".[[:space:]]"))
+              (when (or (not (equal next "."))
+                        (looking-at "\\.[[:space:]]"))
+                (cond
+                 ((and (zerop (length next))
+                       (or (equal (point) (point-min)) ; protecting char-before next line
+                           (equal (char-syntax ?\() (char-syntax (char-before)))))
+                  (throw 'found nil))
+                 ((zerop (length next))
+                  ;; don't use smmie-forward-sexp here
+                  (let ((forward-sexp-function nil)) (forward-sexp -1)))
+                 ((member next tokens) (throw 'found next))))))))
+    (scan-error nil)))
 
 (defun coq-lonely-:=-in-this-command ()
   "Return t if there is a lonely \":=\" from (point) to end of command.
@@ -409,9 +409,9 @@ Non lonely \":=\" are those corresponding to \"let\" or
 function is used to detect whether a command is a definition or a
 proof-mode starter in Coq."
   (equal (coq-smie-search-token-forward
-	  '("." ":=") nil
-	  '(("with" . (":=" "signature")) ("let" . "in")))
-	 "."))
+          '("." ":=") nil
+          '(("with" . (":=" "signature")) ("let" . "in")))
+         "."))
 
 ;; Heuristic to detect a goal opening command: there must be a lonely
 ;; ":=" until command end.
@@ -432,7 +432,7 @@ force indentation."
 \\|Proposition\\|Remark\\|Corollary\\|Goal\
 \\|Add\\(\\s-+Parametric\\)?\\s-+Morphism\
 \\|Fixpoint\\)\\>") ;; Yes Fixpoint can start a proof like Definition
-	(coq-lonely-:=-in-this-command)))))
+        (coq-lonely-:=-in-this-command)))))
 
 
 ;; Heuristic to detect a goal opening command: there must be a lonely ":="
@@ -447,13 +447,13 @@ The point should be at the beginning of the command name."
         (if (coq-lonely-:=-in-this-command) "Module start" "Module def"))))))
 
 
-;(defun coq-smie-detect-module-or-section-start-command ()
-;  "Return t if the next command is a goal starting command.
-;The point should be at the beginning of the command name."
-;  (save-excursion ; FIXME Is there other module starting commands?
-;    (when (and (looking-back "with")
-;	       (proof-looking-at "\\(\\(?:Declare\\s-+\\)?Module\\|Section\\)\\>"))
-;      (coq-lonely-:=-in-this-command))))
+                                        ;(defun coq-smie-detect-module-or-section-start-command ()
+                                        ;  "Return t if the next command is a goal starting command.
+                                        ;The point should be at the beginning of the command name."
+                                        ;  (save-excursion ; FIXME Is there other module starting commands?
+                                        ;    (when (and (looking-back "with")
+                                        ;         (proof-looking-at "\\(\\(?:Declare\\s-+\\)?Module\\|Section\\)\\>"))
+                                        ;      (coq-lonely-:=-in-this-command))))
 
 
 (defconst coq-smie-proof-end-tokens
@@ -463,12 +463,12 @@ The point should be at the beginning of the command name."
 
 (defun coq-is-at-command-real-start()
   (equal (point)
-	 (save-excursion (coq-find-real-start))))
+         (save-excursion (coq-find-real-start))))
 
 (defun coq-is-bullet-token (tok) (coq--string-suffix-p "bullet" tok))
 (defun coq-is-subproof-token (tok) (coq--string-suffix-p "subproof" tok))
 (defun coq-is-dot-token (tok) (or (coq--string-suffix-p "proofstart" tok)
-			       (string-equal "." tok)))
+                                  (string-equal "." tok)))
 (defun coq-is-cmdend-token (tok)
   (or (coq-is-bullet-token tok) (coq-is-subproof-token tok) (coq-is-dot-token tok)))
 
@@ -498,25 +498,25 @@ The point should be at the beginning of the command name."
      ;; @ may be  ahead of an id, it is part of the id.
      ((and (equal tok "@") (looking-at "[[:alpha:]_]"))
       (let ((newtok (coq-smie-forward-token))) ;; recursive call
-	(concat tok newtok)))
+        (concat tok newtok)))
      ;; detecting if some qualification (dot notation) follows that id and
      ;; extend it if yes. Does not capture other alphanumerical token (captured
      ;; below)
      ((and (string-match "@?[[:alpha:]_][[:word:]]*" tok)
-	   (looking-at "\\.[[:alpha:]_]")
-	   (progn (forward-char 1)
-		  (let ((newtok (coq-smie-forward-token))) ; recursive call
-		    (concat tok "." newtok)))))
+           (looking-at "\\.[[:alpha:]_]")
+           (progn (forward-char 1)
+                  (let ((newtok (coq-smie-forward-token))) ; recursive call
+                    (concat tok "." newtok)))))
      ((member tok '("." "..."))
       ;; swallow if qualid, call backward-token otherwise
       (cond
        ((member (char-after) '(?w ?_))  ;(looking-at "[[:alpha:]_]") ;; extend qualifier
-	(let ((newtok (coq-smie-forward-token))) ;; recursive call
-	  (concat tok newtok)))
+        (let ((newtok (coq-smie-forward-token))) ;; recursive call
+          (concat tok newtok)))
        (t (save-excursion (coq-smie-backward-token))))) ;; recursive call
      ((or (string-match coq-bullet-regexp-nospace tok)
-	  (member tok '("=>" ":=" "::=" "exists" "in" "as" "∀" "∃" "→" "∨" "∧" ";"
-			"," ":" "eval" "return")))
+          (member tok '("=>" ":=" "::=" "exists" "in" "as" "by" "∀" "∃" "→" "∨" "∧" ";"
+                        "," ":" "eval" "return")))
       ;; The important lexer for indentation's performance is the backward
       ;; lexer, so for the forward lexer we delegate to the backward one when
       ;; we can.
@@ -528,24 +528,24 @@ The point should be at the beginning of the command name."
      ;; detect "with signature", otherwies use coq-smie-backward-token
      ((equal tok "with")
       (let ((p (point)))
-	(if (equal (smie-default-forward-token) "signature")
-	    "with signature"
-	  (goto-char p)
-	  (save-excursion (coq-smie-backward-token)))))
+        (if (equal (smie-default-forward-token) "signature")
+            "with signature"
+          (goto-char p)
+          (save-excursion (coq-smie-backward-token)))))
 
      ((member tok '("transitivity" "symmetry" "reflexivity"))
       (let ((p (point)))
-	(if (and (equal (smie-default-forward-token) "proved")
-		 (equal (smie-default-forward-token) "by"))
-	    "xxx provedby"
-	  (goto-char p)
-	  tok))) ; by tactical
+        (if (and (equal (smie-default-forward-token) "proved")
+                 (equal (smie-default-forward-token) "by"))
+            "xxx provedby"
+          (goto-char p)
+          tok))) ; by tactical
 
      ((member tok '("Module")) ; TODO: Declare
       (let ((pos (point))
-	    (next (smie-default-forward-token)))
-	(unless (equal next "Type") (goto-char pos))
-	(save-excursion (coq-smie-backward-token))))
+            (next (smie-default-forward-token)))
+        (unless (equal next "Type") (goto-char pos))
+        (save-excursion (coq-smie-backward-token))))
 
      ((member tok '("End"))
       (save-excursion (coq-smie-backward-token)))
@@ -553,22 +553,22 @@ The point should be at the beginning of the command name."
      ((member tok '("do"))
       (save-excursion (coq-smie-backward-token-aux)))
 
-     ; empty token if a prenthesis is met.
+                                        ; empty token if a prenthesis is met.
      ((and (zerop (length tok)) (looking-at "{|")) (goto-char (match-end 0)) "{|")
 
      ;; this must be after detecting "{|":
      ((and (zerop (length tok)) (eq (char-after) ?\{))
       (if (equal (save-excursion (forward-char 1) (coq-smie-backward-token))
-		 "{ subproof")
-	  (progn (forward-char 1) "{ subproof")
-	tok))
+                 "{ subproof")
+          (progn (forward-char 1) "{ subproof")
+        tok))
 
      ((and (zerop (length tok)) (eq (char-after) ?\}))
       (if (equal (save-excursion (forward-char 1)
-				 (coq-smie-backward-token))
-		 "} subproof")
-	  (progn (forward-char 1) "} subproof")
-	tok))
+                                 (coq-smie-backward-token))
+                 "} subproof")
+          (progn (forward-char 1) "} subproof")
+        tok))
      ((and (equal tok "|") (eq (char-after) ?\}))
       (goto-char (1+ (point))) "|}")
      ((member tok coq-smie-proof-end-tokens) "Proof End")
@@ -581,7 +581,7 @@ The point should be at the beginning of the command name."
 
      ;; Com start is a token for the first word of a command (provided it is a word)
      ((save-excursion
-        (and (smie-default-backward-token) 
+        (and (smie-default-backward-token)
              (coq-is-at-command-real-start)
              (> (length tok) 0)
              (or (string= "Lu" (get-char-code-property (aref tok 0) 'general-category))
@@ -610,28 +610,26 @@ The point should be at the beginning of the command name."
   (let* (;; (orig (point))
          (cmdstrt (save-excursion (coq-find-real-start)))
          (corresp (coq-smie-search-token-backward
-		   '("let" "Inductive" "CoInductive" "{|" "." "with" "Module" "where"
-                     "Equations" "fix"
-		     )
-		   cmdstrt '((("let" "with") . ":=")))))
+                   '("let" "Inductive" "CoInductive" "{|" "." "with" "Module" "where" "Equations" "fix")
+                   cmdstrt
+                   '((("let" "with") . ":=")))))
     (cond
-     ((member corresp '("Equations")) ":= equations")
+     ((equal corresp "Equations") ":= equations")
      ((equal corresp "with")
       (let ((corresptok (coq-smie-with-deambiguate)))
-	(cond ;; recursive call if the with found is actually et with match
-	 ((equal corresptok "with match") (coq-smie-:=-deambiguate))
-	 ((equal corresptok "with inductive") ":= inductive")
-	 ((equal corresptok "with fixpoint") ":= fixpoint")
-	 ;; ((equal corresptok "with fix") ":= fix")
-	 ((equal corresptok "with module") ":= with module")
-	 (t ":=")
-	 )))
+        (cond ;; recursive call if the with found is actually et with match
+         ((equal corresptok "with match") (coq-smie-:=-deambiguate))
+         ((equal corresptok "with inductive") ":= inductive")
+         ((equal corresptok "with fixpoint") ":= fixpoint")
+         ;; ((equal corresptok "with fix") ":= fix")
+         ((equal corresptok "with module") ":= with module")
+         (t ":="))))
      ((equal corresp "Module")
       (let ((p (point)))
-	(if (equal (smie-default-backward-token) "with")
-	    ":= with module"
-	  (goto-char p)
-	  ":= module")))
+        (if (equal (smie-default-backward-token) "with")
+            ":= with module"
+          (goto-char p)
+          ":= module")))
      ((member corresp '("Inductive" "CoInductive" "Variant")) ":= inductive")
      ((equal corresp "let") ":= let")
      ((equal corresp "fix") ":= fix")
@@ -643,7 +641,6 @@ The point should be at the beginning of the command name."
       ;; "| H: T := t |- _"). Toherwise we are probably in a Definition
       (if (or (looking-at "Equations\\|match\\|let")) ":=" ":= def"))
      (t ":="))))
-
 
 (defun coq-smie-semicolon-deambiguate ()
   (let* (;; (pos (point))
@@ -662,6 +659,36 @@ The point should be at the beginning of the command name."
       (if (save-excursion (goto-char cmdstrt) (looking-at "Equations"))
           "; equations"
         ";")))))
+
+(defun coq-smie-by-deambiguate ()
+  (let ((p (point)))
+    (if (and (equal (smie-default-backward-token) "proved")
+             (member (smie-default-backward-token) '("transitivity" "symmetry" "reflexivity")))
+        "xxx provedby"
+      (goto-char p)
+      (let* ((cmdstrt (save-excursion (coq-find-real-start)))
+             (istac (or (coq-smie-is-tactic)
+                        (coq-smie-is-ltacdef)
+                        (coq-smie-is-inside-parenthesized-tactic)))
+             (enclosing (coq-is-inside-enclosing cmdstrt)))
+        (cond
+         (istac "by tactic")
+         ((string-equal enclosing "{ subproof") "by tactic")
+         (t "by"))))))
+
+(defun coq-smie-as-deambiguate ()
+  (let ((prev-interesting
+         (coq-smie-search-token-backward
+          '("match" "lazymatch" "multimatch" "lazy_match" "multi_match"
+            "Morphism" "Relation" "." ". proofstart" "as"
+            "{ subproof" "} subproof")
+          nil
+          '((("match" "lazy_match" "multi_match" "let") . "with")
+            ("with" . "signature")))))
+    (cond
+     ((member prev-interesting '("match" "lazymatch" "multimatch" "lazy_match" "mult_match")) "as match")
+     ((member prev-interesting '("Morphism" "Relation")) "as morphism")
+     (t "as"))))
 
 (defun coq-smie-backward-token ()
   (let ((tok (coq-smie-backward-token-aux)))
@@ -683,7 +710,7 @@ The point should be at the beginning of the command name."
   (buffer-substring-no-properties
    (point)
    (let ((dist (skip-syntax-forward ".")))
-     
+
      (when (or (zerop dist)
                (and (= 1 dist) (looking-back "\\\\")))
        (skip-syntax-forward "w_'"))
@@ -707,38 +734,38 @@ The point should be at the beginning of the command name."
      ;; an term (f x , v) and a tactic expecting a tuple (tac x , v)
      ((equal tok ",")
       (save-excursion
-	(let ((backtok (coq-smie-search-token-backward
-			'("forall" "∀" "∃" "exists" "|" "match" "lazymatch" "multimatch" "lazy_match" "multi_match" "."))))
-	  (cond
-	   ((member backtok '("forall" "∀" "∃")) ", quantif")
-	   ((equal backtok "exists") ; there is a tactic called exists
-	    (if (equal (coq-smie-forward-token) ;; recursive call
-		       "quantif exists")
-		", quantif" tok))
-	   (t tok)))))
+        (let ((backtok (coq-smie-search-token-backward
+                        '("forall" "∀" "∃" "exists" "|" "match" "lazymatch" "multimatch" "lazy_match" "multi_match" "."))))
+          (cond
+           ((member backtok '("forall" "∀" "∃")) ", quantif")
+           ((equal backtok "exists") ; there is a tactic called exists
+            (if (equal (coq-smie-forward-token) ;; recursive call
+                       "quantif exists")
+                ", quantif" tok))
+           (t tok)))))
 
-     ; Same for ";" : record field separator, tactic combinator, etc
+                                        ; Same for ";" : record field separator, tactic combinator, etc
      ((equal tok ";")
       (save-excursion (coq-smie-semicolon-deambiguate)))
 
      ;; trying to discriminate between bollean operator || and tactical ||.
      ((equal tok "||")
       (save-excursion
-	(let ((backtok (coq-smie-search-token-backward '("." ";" "Ltac" "Ltac2" "(" "[" "{"))))
-	  (cond
-	   ((member backtok '("." "Ltac" "Ltac2")) "|| tactic")
-	   ((and (equal backtok ";")
-		 (or (forward-char) t)
-		 (equal (coq-smie-backward-token) "; tactic")) ;; recursive
-	    "|| tactic")
-	   ;; this is wrong half of the time but should not harm indentation
-	   ((and (equal backtok nil) (eq (char-before) '?\()) "||")
-	   ((equal backtok nil)
-	    (if (or (eq (char-before) '?\[)
-		    (and (eq (char-before) '?\{)
-			 (equal (coq-smie-backward-token) "{ subproof"))) ;; recursive call
-		"|| tactic"
-	      "||"))))))
+        (let ((backtok (coq-smie-search-token-backward '("." ";" "Ltac" "Ltac2" "(" "[" "{"))))
+          (cond
+           ((member backtok '("." "Ltac" "Ltac2")) "|| tactic")
+           ((and (equal backtok ";")
+                 (or (forward-char) t)
+                 (equal (coq-smie-backward-token) "; tactic")) ;; recursive
+            "|| tactic")
+           ;; this is wrong half of the time but should not harm indentation
+           ((and (equal backtok nil) (eq (char-before) '?\()) "||")
+           ((equal backtok nil)
+            (if (or (eq (char-before) '?\[)
+                    (and (eq (char-before) '?\{)
+                         (equal (coq-smie-backward-token) "{ subproof"))) ;; recursive call
+                "|| tactic"
+              "||"))))))
 
      ;; This may be part of monadic notation, so detect other uses of "do".
      ((equal tok "do")
@@ -750,31 +777,29 @@ The point should be at the beginning of the command name."
           "do")))
 
 
-     ; Same for "->" : rewrite or intro arg or term's implication
-     ; FIXME: user defined arrows will be considered a term
+                                        ; Same for "->" : rewrite or intro arg or term's implication
+                                        ; FIXME: user defined arrows will be considered a term
      ((equal tok "->")
       (save-excursion
-	(let ((backtok (coq-smie-search-token-backward '("intro" "intros" "rewrite" "."))))
-	  (cond
-	   ((equal backtok ".") "->")
-	   ((equal backtok nil) "->")
-	   (t "-> tactic")))))
+        (let ((backtok (coq-smie-search-token-backward '("intro" "intros" "rewrite" "."))))
+          (cond
+           ((equal backtok ".") "->")
+           ((equal backtok nil) "->")
+           (t "-> tactic")))))
 
      ;; "<-" is a commonly used token for monadic notations, we should
      ;; discrimnate between "rewrite ... <-" and other uses of "<-".
      ((equal tok "<-")
       (save-excursion
-	(let ((backtok (coq-smie-search-token-backward '("intro" "intros" "rewrite" "."))))
-	  (cond
-	   ((equal backtok ".") "<-")
-	   ((equal backtok nil) "<-")
-	   (t "<- tactic")))))
+        (let ((backtok (coq-smie-search-token-backward '("intro" "intros" "rewrite" "."))))
+          (cond
+           ((equal backtok ".") "<-")
+           ((equal backtok nil) "<-")
+           (t "<- tactic")))))
 
 
      ((equal tok "Module")
-      (save-excursion
-	;(coq-find-real-start)
-	(coq-smie-module-deambiguate)))
+      (save-excursion (coq-smie-module-deambiguate)))
 
      ;; match needs to be catpured now to avoid being catpured by "Com start"
      ((member tok '("match" "lazy_match" "lazymatch" "multi_match" "multimatch")) "match")
@@ -820,23 +845,23 @@ The point should be at the beginning of the command name."
 
      ((member tok '(":=" "::="))
       (save-excursion
-	(save-excursion (coq-smie-:=-deambiguate))))
+        (save-excursion (coq-smie-:=-deambiguate))))
 
      ((equal tok "=>")
       (save-excursion
-	(let ((corresp (coq-smie-search-token-backward
-			'("|" "match" "lazymatch" "multimatch" "lazy_match" "multi_match" "fun" ".")
-			nil '((("match" "lazy_match" "multi_match") . "end") ("fun" . "=>")))))
-	  (cond
-	   ((member corresp '("fun")) "=> fun") ; fun
-	   (t tok)))))
+        (let ((corresp (coq-smie-search-token-backward
+                        '("|" "match" "lazymatch" "multimatch" "lazy_match" "multi_match" "fun" ".")
+                        nil '((("match" "lazy_match" "multi_match") . "end") ("fun" . "=>")))))
+          (cond
+           ((member corresp '("fun")) "=> fun") ; fun
+           (t tok)))))
 
      ;; FIXME: no token should end with "." except "." itself
-     ; for "unfold in *|-*."
+                                        ; for "unfold in *|-*."
      ((member tok '("*." "-*." "|-*." "*|-*."))
       (forward-char (- (length tok) 1))
       (coq-smie-.-deambiguate))
-     ; for "unfold in *|-*;"
+                                        ; for "unfold in *|-*;"
      ((member tok '("*;" "-*;" "|-*;" "*|-*;"))
       ;; FIXME; can be "; ltac" too
       (forward-char (- (length tok) 1)) "; tactic")
@@ -844,100 +869,75 @@ The point should be at the beginning of the command name."
      ;; recursively any other bullet or "n:{" "}". this is the work of
      ;; coq-empty-command-p
      ((and (string-match coq-bullet-regexp-nospace tok)
-	   (save-excursion (coq-empty-command-p)))
+           (save-excursion (coq-empty-command-p)))
       (concat tok " bullet"))
 
      ((and (member tok '("exists" "∃"))
-	   (save-excursion
-	     ;; recursive call looking at the ptoken immediately before
-	     (let ((prevtok (coq-smie-backward-token)))
-	       ;; => may be wrong here but rare (have "=> ltac"?)
-	       (not (or (coq-is-cmdend-token prevtok)
-			(member prevtok '("; tactic" "[" "]" "|" "=>")))))))
+           (save-excursion
+             ;; recursive call looking at the ptoken immediately before
+             (let ((prevtok (coq-smie-backward-token)))
+               ;; => may be wrong here but rare (have "=> ltac"?)
+               (not (or (coq-is-cmdend-token prevtok)
+                        (member prevtok '("; tactic" "[" "]" "|" "=>")))))))
       "quantif exists")
 
      ((equal tok "∀") "forall")
      ((equal tok "→") "->")
      ((equal tok "∨") "\\/")
      ((equal tok "∧") "/\\")
+     ((equal tok "where") "where")
 
      ((equal tok "with") ; "with" is a nightmare: at least 4 different uses
       (save-excursion (coq-smie-with-deambiguate)))
-     ((equal tok "where")
-      "where")
 
-     ((and (equal tok "signature")
-	   (equal (smie-default-backward-token) "with"))
+     ((and
+       (equal tok "signature")
+       (equal (smie-default-backward-token) "with"))
       "with signature")
 
      ((equal tok "by")
-      (let ((p (point)))
-	(if (and (equal (smie-default-backward-token) "proved")
-		 (member (smie-default-backward-token)
-			 '("transitivity" "symmetry" "reflexivity")))
-	    "xxx provedby"
-	  (goto-char p)
-	  tok))) ; by tactical
+      (save-excursion (coq-smie-by-deambiguate)))
 
      ((equal tok "as")
-      (save-excursion
-	(let ((prev-interesting
-	       (coq-smie-search-token-backward
-		'("match" "lazymatch" "multimatch" "lazy_match" "multi_match" "Morphism" "Relation" "." ". proofstart"
-		  "{ subproof" "} subproof" "as")
-		nil
-		'((("match" "lazy_match" "multi_match" "let") . "with") ("with" . "signature")))))
-	  (cond
-	   ((member prev-interesting '("match" "lazymatch" "multimatch" "lazy_match" "mult_match")) "as match")
-	   ((member prev-interesting '("Morphism" "Relation")) "as morphism")
-	   (t tok)))))
+      (save-excursion (coq-smie-as-deambiguate)))
 
      ((equal tok "return")
       (save-excursion
-	(let ((prev-interesting
-	       (coq-smie-search-token-backward
-		'("match" "lazymatch" "multimatch" "lazy_match" "multi_match" "Morphism" "Relation" "." ". proofstart")
-		nil
-		'((("match" "lazy_match" "multi_match" "let") . "with") ("with" . "signature")))))
-	  (cond
-	   ((member prev-interesting '("match" "lazymatch" "multimatch" "lazy_match" "mult_match")) "return match")
-	   (t tok)))))
-
-     ((equal tok "by")
-      (let ((p (point)))
-	(if (and (equal (smie-default-backward-token) "proved")
-		 (member (smie-default-backward-token)
-			 '("transitivity" "symmetry" "reflexivity")))
-	    "xxx provedby"
-	  (goto-char p)
-	  tok))) ; by tactical
+        (let ((prev-interesting
+               (coq-smie-search-token-backward
+                '("match" "lazymatch" "multimatch" "lazy_match" "multi_match" "Morphism" "Relation" "." ". proofstart")
+                nil
+                '((("match" "lazy_match" "multi_match" "let") . "with") ("with" . "signature")))))
+          (cond
+           ((member prev-interesting '("match" "lazymatch" "multimatch" "lazy_match" "mult_match")) "return match")
+           (t tok)))))
 
 
      ((equal tok "eval")
       (if (member (save-excursion
-		    (forward-char 4)
-		    (smie-default-forward-token))
-		  '("red" "hnf" "compute" "simpl" "cbv" "lazy" "unfold" "fold" "pattern"))
-	  "eval in" tok))
-     
+                    (forward-char 4)
+                    (smie-default-forward-token))
+                  '("red" "hnf" "compute" "simpl" "cbv" "lazy" "unfold" "fold" "pattern"))
+          "eval in" tok))
+
 
      ((equal tok "in")
       (save-excursion
-	(let ((prev-interesting
-	       (coq-smie-search-token-backward
-		'("let" "match" "lazymatch" "multimatch" "lazy_match" "mult_match" ;"eval" should be "eval in" but this is not supported by search-token-backward
-		  "." )
-		nil
-		'((("match" "lazymatch" "multimatch" "lazy_match" "mult_match")
-		   . "with")
-		  (("let") ;"eval"
-		   . "in")))))
-	  (cond
-	   ((member prev-interesting '("." nil)) "in tactic")
-	   ((equal prev-interesting "let") "in let")
-	   ;((equal prev-interesting "eval in") "in eval"); not detectable by coq-smie-search-token-backward
-	   ((equal prev-interesting "match") "in match")
-	   (t "in tactic")))))
+        (let ((prev-interesting
+               (coq-smie-search-token-backward
+                '("let" "match" "lazymatch" "multimatch" "lazy_match" "mult_match" ;"eval" should be "eval in" but this is not supported by search-token-backward
+                  "." )
+                nil
+                '((("match" "lazymatch" "multimatch" "lazy_match" "mult_match")
+                   . "with")
+                  (("let") ;"eval"
+                   . "in")))))
+          (cond
+           ((member prev-interesting '("." nil)) "in tactic")
+           ((equal prev-interesting "let") "in let")
+                                        ;((equal prev-interesting "eval in") "in eval"); not detectable by coq-smie-search-token-backward
+           ((equal prev-interesting "match") "in match")
+           (t "in tactic")))))
 
      ((and (eq (char-before) ?@) (member (char-syntax (char-after)) '(?w ?_)))
       (forward-char -1)
@@ -949,25 +949,25 @@ The point should be at the beginning of the command name."
       ;; Distinguish field-selector "." from terminator "." from module
       ;; qualifier.
       (let ((nxtnxt (char-after (+ (point) (length tok)))))
-	(if (eq nxtnxt ?\() ". selector"
-          (if (eq nxtnxt ?}) ;; dot immediately followed by closesubproof. 
+        (if (eq nxtnxt ?\() ". selector"
+          (if (eq nxtnxt ?}) ;; dot immediately followed by closesubproof.
               "."
-	    (if (or (null nxtnxt) (eq (char-syntax nxtnxt) ?\ ))
-	        ;; command terminator: ". proofstart" et al
-	        (save-excursion (forward-char (- (length tok) 1))
-			        (coq-smie-.-deambiguate))
-	      (cond
+            (if (or (null nxtnxt) (eq (char-syntax nxtnxt) ?\ ))
+                ;; command terminator: ". proofstart" et al
+                (save-excursion (forward-char (- (length tok) 1))
+                                (coq-smie-.-deambiguate))
+              (cond
                ((eq (char-syntax nxtnxt) ?w)
-	        (let ((newtok (coq-smie-complete-qualid-backward)))
-		  ;; qualified name
-		  (concat newtok tok)))
-	       (t ". selector")))))))  ;; probably a user defined syntax
+                (let ((newtok (coq-smie-complete-qualid-backward)))
+                  ;; qualified name
+                  (concat newtok tok)))
+               (t ". selector")))))))  ;; probably a user defined syntax
 
      ((and (and (eq (char-before) ?.) (member (char-syntax (char-after))
-					      '(?w ?_))))
+                                              '(?w ?_))))
       (forward-char -1)
       (let ((newtok (coq-smie-backward-token))) ; recursive call
-	(concat newtok "." tok)))
+        (concat newtok "." tok)))
 
      ((member tok '("lazymatch" "lazy_match" "multimatch" "multi_match")) "match")
 
@@ -1082,7 +1082,7 @@ Typical values are 2 or 4."
 ;; is considerd a separator. So any command is the child of the
 ;; previous one. This may lead to strange things wrt to indentation if
 ;; we don't take care. For instance the following script
-;:;
+                                        ;:;
 ;; Com1 .(1)
 ;; Definition foo := bar .(2)
 ;; ...
@@ -1172,7 +1172,7 @@ Typical values are 2 or 4."
        (exp "<- monadic" exp)
        ("(" exp ")") ("{|" exps "|}") ("{" exps "}")
        (exp "; tactic" exp) (exp "in tactic" exp) (exp "as" exp)
-       (exp "by" exp) (exp "with" exp) (exp "|-" exp)
+       (exp "by tactic" exp) (exp "with" exp) (exp "|-" exp)
        (exp ":" exp) (exp ":<" exp) (exp "," exp)
        (exp "->" exp) (exp "<->" exp) (exp "&" exp)
        (exp "/\\" exp) (exp "\\/" exp)
@@ -1191,11 +1191,11 @@ Typical values are 2 or 4."
       ;;(with-signature-exp ("with signature" exp))
       ;;(proved-by-exp ("xxx provedby" exp))
       ;;(as-morphism-exp ("as morphism" exp))
-      
+
       ;; Having "return" here rather than as a separate rule in `exp' causes
       ;; it to be indented at a different level than "with".
       (matchexp (exp) (exp "as match" exp) (exp "in match" exp)
-		(exp "return match" exp) )
+                (exp "return match" exp) )
       (exps (affectrec) (exps "; record" exps))
       (affectrec (exp ":= record" exp))
       (assigns  (exp ":= let" exp) (exp "<- monadic" exp))
@@ -1203,7 +1203,7 @@ Typical values are 2 or 4."
 
       (moduledef (moduledecl ":= module" exp))
       (moduledecl (exp) (exp ":" moduleconstraint)
-		  (exp "<:" moduleconstraint))
+                  (exp "<:" moduleconstraint))
       (moduleconstraint
        (exp) (exp ":= with module" exp)
        (moduleconstraint "with module" "module nodecl" moduleconstraint))
@@ -1213,32 +1213,32 @@ Typical values are 2 or 4."
       ;; goal starter and returns the ". proofstart" and ". moduelstart"
       ;; tokens.
       (bloc ("{ subproof" commands "} subproof")
-	    (". proofstart" commands  "Proof End")
-	    (". modulestart" commands  "end module" exp)
-	    (moduledecl) (moduledef)
-	    (exp))
+            (". proofstart" commands  "Proof End")
+            (". modulestart" commands  "end module" exp)
+            (moduledecl) (moduledef)
+            (exp))
 
       (commands (commands "." commands)
-                ;(commands ". sameline" commands)
-		(commands "- bullet" commands)
-		(commands "+ bullet" commands)
-		(commands "* bullet" commands)
-		(commands "-- bullet" commands)
-		(commands "++ bullet" commands)
-		(commands "** bullet" commands)
-		(commands "--- bullet" commands)
-		(commands "+++ bullet" commands)
-		(commands "*** bullet" commands)
-		(commands "---- bullet" commands)
-		(commands "++++ bullet" commands)
-		(commands "**** bullet" commands)
-		;; "with" of mutual definition should act like "."
-		;; same for "where" (introduction of a notation
-		;; after a inductive or fixpoint)
-		(commands "with inductive" commands)
-		(commands "with fixpoint" commands)
-		(commands "where" commands)
-		(bloc)))
+                                        ;(commands ". sameline" commands)
+                (commands "- bullet" commands)
+                (commands "+ bullet" commands)
+                (commands "* bullet" commands)
+                (commands "-- bullet" commands)
+                (commands "++ bullet" commands)
+                (commands "** bullet" commands)
+                (commands "--- bullet" commands)
+                (commands "+++ bullet" commands)
+                (commands "*** bullet" commands)
+                (commands "---- bullet" commands)
+                (commands "++++ bullet" commands)
+                (commands "**** bullet" commands)
+                ;; "with" of mutual definition should act like "."
+                ;; same for "where" (introduction of a notation
+                ;; after a inductive or fixpoint)
+                (commands "with inductive" commands)
+                (commands "with fixpoint" commands)
+                (commands "where" commands)
+                (bloc)))
 
 
     ;; Resolve the "trailing expression ambiguity" as in "else x -> b".
@@ -1265,7 +1265,8 @@ Typical values are 2 or 4."
       (nonassoc ":= fix")
       (left "=> fun") (left ", quantif") (assoc "then")
       (assoc "|| tactic") ;; FIXME: detecting "+ tactic" and "|| tactic" seems impossible
-      (left "; tactic") (assoc "in tactic") (assoc "as" "by") (assoc "with")
+      (left "; tactic") (assoc "in tactic") (assoc "as")
+      (assoc "by tactic") (assoc "with")
       (assoc "|-") (assoc ":" ":<") (left ",")
       (assoc "else")
       (assoc "->") (assoc "<->")
@@ -1295,12 +1296,12 @@ Typical values are 2 or 4."
       (assoc ":= record"))))
   "Parsing table for Coq.  See `smie-grammar'.")
 ;; FIXME:
-; Record rec:Set :=     {
-;                   fld1:nat;
-;                   fld2:nat;
-;                   fld3:bool
-;                 }.
-; FIXME: as is sometimes a "as morphism" but not detected as such
+                                        ; Record rec:Set :=     {
+                                        ;                   fld1:nat;
+                                        ;                   fld2:nat;
+                                        ;                   fld3:bool
+                                        ;                 }.
+                                        ; FIXME: as is sometimes a "as morphism" but not detected as such
 ;; Add Parametric Morphism (A : Type) : (mu (A:=A))
 ;;     with signature Oeq ==> Oeq
 ;;                    as mu_eq_morphism.
@@ -1350,7 +1351,7 @@ Typical values are 2 or 4."
 If nil, default to `proof-indent' if it exists or to `smie-indent-basic'."
   :group 'coq-mode
   :type '(choice (const :tag "Fallback on global settings" nil)
-          integer))
+                 integer))
 
 ;; otherwise there are some glitches
 (setq smie-indent-basic coq-indent-basic)
@@ -1380,23 +1381,23 @@ If nil, default to `proof-indent' if it exists or to `smie-indent-basic'."
 ;; (custom-set-faces '(highlight ((((type x) (class color) (background light)) (:background "Wheat")))))
 (defun coq-show-smie--parent (parent token parent-token &optional num msg)
   (ignore-errors
-   (message "%s token: %S ; parent: %S ; parent-token: %S" msg token parent parent-token)
-   (hlt-unhighlight-region)
-   (let* ((beg (if (listp (car parent)) (caar parent) (car parent)))
-          (end (cadr parent))
-          (regi (list (list beg end)))
-          ;; (tok (car (cddr parent)))
-          (face (cond
-                 ((equal num 2) 'hlt-regexp-level-2)
-                 (t 'hlt-regexp-level-1))))
-     (and parent (hlt-highlight-regions regi face)))))
+    (message "%s token: %S ; parent: %S ; parent-token: %S" msg token parent parent-token)
+    (hlt-unhighlight-region)
+    (let* ((beg (if (listp (car parent)) (caar parent) (car parent)))
+           (end (cadr parent))
+           (regi (list (list beg end)))
+           ;; (tok (car (cddr parent)))
+           (face (cond
+                  ((equal num 2) 'hlt-regexp-level-2)
+                  (t 'hlt-regexp-level-1))))
+      (and parent (hlt-highlight-regions regi face)))))
 ;;;;;;;;;; END DEBUG CODE ;;;;;;;;;;;;
 
 (defun coq-indent-categorize-token-after (tk)
   "Factorize tokens behaving the same \"smie-rules\"-wise (kind:after)."
   (cond
    ((coq-is-bullet-token tk) "after bullet")
-   ((member tk '("with" ":" "by" "in tactic" "as" ",")) "tactic infix")
+   ((member tk '("with" ":" "by tactic" "in tactic" "as" ",")) "tactic infix")
    ((member tk '("<:" "<+" "with module")) "modulespec infix") ;;  ":= inductive" ":= module" and other ":= xxx"
    ((member tk '(":= record")) tk) ;; avoids capture by next case
    ((string-prefix-p ":= " tk) "after :=")
@@ -1408,7 +1409,7 @@ If nil, default to `proof-indent' if it exists or to `smie-indent-basic'."
   "Factorize tokens behaving the same \"smie-rules\"-wise (kind:after)."
   (cond
    ((member tk '(". proofstart" ". modulestart")) "dot script parent open")
-   ((member tk '(":" "by" "in tactic" "as" "with" ",")) "tactic infix")
+   ((member tk '(":" "by tactic" "in tactic" "as" "with" ",")) "tactic infix")
    ((string-prefix-p ":= " tk) "before :=")
 
    ;; by default we pass the token name, but maybe it would be safer
@@ -1471,7 +1472,7 @@ whereas with a nil value you get
 ;;     z t  (* align with function foo + 2. *)
 ;;     u v.  (* align with arg z on bol of previous line *)
 
-;; More complex: 
+;; More complex:
 ;; Definition foo :=
 ;;   foo x (y
 ;;            a b)
@@ -1531,8 +1532,8 @@ whereas with a nil value you get
                       ;; otherwise things like this:
                       ;; { tac1. }
                       ;; { tac2. }
-                      ;; would be detected as function applications. 
-                      (>= (point) limit) 
+                      ;; would be detected as function applications.
+                      (>= (point) limit)
                       (push (point) positions)
                       (not (smie-indent--bolp))))
           (save-excursion
@@ -1549,13 +1550,13 @@ whereas with a nil value you get
             ;; indentation should be (have been) determined by its context.
             nil)
            (arg ;; There's a previous element, and it's not special
-                ;; (it's not the function), so let's just align with that one.
+            ;; (it's not the function), so let's just align with that one.
             (goto-char (car positions))
             (if (fboundp 'smie-indent--current-column)
                 (smie-indent--current-column)
               (current-column)))
            (t ;; There's no previous arg at BOL.  Align with the function.
-              ;; TODO: obey boxed style? this was for quantifiers.
+            ;; TODO: obey boxed style? this was for quantifiers.
             (goto-char (car positions))
             ;; Special case: the function we found is actually next to a command start.
             ;; We prefer to indent from it.
@@ -1563,13 +1564,13 @@ whereas with a nil value you get
               (let ((left (save-excursion (smie-backward-sexp))))
                 (if (equal (nth 2 left) "Com start")
                     (goto-char (nth 1 left)))))
-              (+ (smie-indent--offset 'args)
-                 ;; We used to use (smie-indent-virtual), but that
-                 ;; doesn't seem right since it might then indent args less than
-                 ;; the function itself.
-                 (if (fboundp 'smie-indent--current-column)
-                     (smie-indent--current-column)
-                   (current-column))))))))))
+            (+ (smie-indent--offset 'args)
+               ;; We used to use (smie-indent-virtual), but that
+               ;; doesn't seem right since it might then indent args less than
+               ;; the function itself.
+               (if (fboundp 'smie-indent--current-column)
+                   (smie-indent--current-column)
+                 (current-column))))))))))
 
 
 ;; Reminder: (smie-rule-separator kind) only works for *parenthesized* enumerations.
@@ -1595,10 +1596,10 @@ KIND is the situation and TOKEN is the thing w.r.t which the rule applies."
            ("} subproof" 0) ;;shouldn't be captured by (:elem . args)?
            (". proofstart" coq-indent-proofstart)
            (". modulestart" coq-indent-modulestart)
-           ;; decrement indentation when hanging 
+           ;; decrement indentation when hanging
            ((and (or "tactic infix" "after :=") (guard (or (hang-p) (smie-rule-bolp)))) 0)
            ((and "->" (guard (hang-p))) 0)
-	   ((or ":=" "with inductive") 2)
+           ((or ":=" "with inductive") 2)
            ((and "<->" (guard (hang-p))) 0)
            ((and "/\\" (guard (hang-p))) 0)
            ((and "\\/" (guard (hang-p))) 0)
@@ -1621,15 +1622,15 @@ KIND is the situation and TOKEN is the thing w.r.t which the rule applies."
              ("tactic infix" (parent 2))
              ("|" (cond ((parent-p ":= inductive" ":= equations") -2)
                         (t 0)))
-	     ;; ((parent-p "|") 0)
+             ;; ((parent-p "|") 0)
              ;; align quantifiers with the previous one
              ((and(or "forall" "quantif exists")(guard (parent-p "forall" "quantif exists")))
               (parent))
-	     ((and "fix" (guard (parent-p "let"))) (parent))
+             ((and "fix" (guard (parent-p "let"))) (parent))
              ((and(or "fun")(guard (parent-p "fun"))) (parent))
-	     ;; ((and "with fix" (guard (parent-p "fix"))) (parent))
-	     ;; ((and "for" (guard (parent-p "with fix"))) (parent))
-	     ;; ((and(or "fix")(guard (parent-p "fix"))) (parent))
+             ;; ((and "with fix" (guard (parent-p "fix"))) (parent))
+             ;; ((and "for" (guard (parent-p "with fix"))) (parent))
+             ;; ((and(or "fix")(guard (parent-p "fix"))) (parent))
              ;; indent on level after a ";" but only at command level.
              ((and "; tactic" (guard (parent-p "Com start"))) (parent))
              ("; record" 0); is also a smie-rule-separator

@@ -252,7 +252,21 @@ the token of \".\" is simply \".\"."
     (if (equal tok ".") nil tok)))
 
 (defun coq-smie-find-fix-backward (&optional bound)
-  (coq-smie-search-token-backward '("fix" ".") bound))
+  (coq-smie-search-token-backward '("fix" ".") bound
+                                  '(("let" . "in")
+                                    (("match" "lazymatch" "multimatch" "lazy_match" "mult_match") . "end"))))
+
+(defun coq-smie-for-deambiguate ()
+  (save-excursion
+    (let ((tok (coq-smie-search-token-backward
+                '("with" "fix" "for" ".")
+                nil
+                '((("match" "lazymatch" "multimatch" "lazy_match" "mult_match") . "end")
+                  (("let") . "in")))))
+      (if (and (equal tok "with")
+               (equal (coq-smie-with-deambiguate) "with fix"))
+          "for fix"
+        "for"))))
 
 ;; point supposed to be at start of the "with"
 (defun coq-smie-with-deambiguate ()
@@ -509,7 +523,7 @@ The point should be at the beginning of the command name."
        (t (save-excursion (coq-smie-backward-token))))) ;; recursive call
      ((or (string-match coq-bullet-regexp-nospace tok)
           (member tok '("=>" ":=" "::=" "exists" "in" "as" "by" "∀" "∃" "→" "∨" "∧" ";"
-                        "," ":" "eval" "return")))
+                        "," ":" "eval" "return" "for")))
       ;; The important lexer for indentation's performance is the backward
       ;; lexer, so for the forward lexer we delegate to the backward one when
       ;; we can.
@@ -802,6 +816,9 @@ The point should be at the beginning of the command name."
      ;; rhaaa... Some peolple use "End" as a id...
      ((equal tok "End")
       (if (coq-is-at-command-real-start) "end module" tok))
+
+     ((equal tok "for")
+      (save-excursion (coq-smie-for-deambiguate)))
 
      ;; FIXME: this is a parenthesis
      ((and (equal tok "|") (eq (char-before) ?\{))
@@ -1187,7 +1204,7 @@ Typical values are 2 or 4."
       (exps (affectrec) (exps "; record" exps))
       (affectrec (exp ":= record" exp))
       (fix-body (fix-recursive)
-                (fix-recursive "for" exp))
+                (fix-recursive "for fix" exp))
       (fix-recursive (fix-single)
                      (fix-single "with fix" fix-recursive))
       (fix-single (exp ":= fix" exp))
@@ -1247,7 +1264,7 @@ Typical values are 2 or 4."
       (assoc "with inductive" "with fixpoint" "where"))
     '((nonassoc "Com start")
       (nonassoc "fix")
-      (assoc "with match" "with fix" "for" ":= fix")
+      (assoc "with match" "with fix" "for fix" ":= fix")
       (assoc ":= equations")
       (assoc ":= def" ":= inductive" ":= fixpoint")
       (left "|") (assoc "; equations") (assoc "=>") (assoc ":=")
@@ -1620,12 +1637,9 @@ KIND is the situation and TOKEN is the thing w.r.t which the rule applies."
              ((and(or "forall" "quantif exists")(guard (parent-p "forall" "quantif exists")))
               (parent))
              ((and "with fix" (guard (parent-p "fix" "with fix"))) (parent))
-             ((and "for" (guard (parent-p "fix" "with fix"))) (parent))
+             ((and "for fix" (guard (parent-p "fix" "with fix"))) (parent))
              ((and "fix" (guard (parent-p "let"))) (parent))
              ((and "fun" (guard (parent-p "fun"))) (parent))
-             ;; ((and "with fix" (guard (parent-p "fix"))) (parent))
-             ;; ((and "for" (guard (parent-p "with fix"))) (parent))
-             ;; ((and(or "fix")(guard (parent-p "fix"))) (parent))
              ;; indent on level after a ";" but only at command level.
              ((and "; tactic" (guard (parent-p "Com start"))) (parent))
              ("; record" 0); is also a smie-rule-separator

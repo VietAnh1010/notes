@@ -1,3 +1,5 @@
+### Emacs key bindings
+
 A-/: auto complete
 C-x C-f: open a file
 C-x u: undo
@@ -14,6 +16,7 @@ C-x <number>: split window
 C-x 4 f: open a new file in a separate buffer
 C-x k: kill buffer
 C-u 0 <command>: pass 0 as argument to <command>
+C-h v: see variable current value
 M-w: copy
 M-x replace-string: replace
 M-;: wrap the block in comment
@@ -22,4 +25,13 @@ M-x shell: open terminal, using emacs bindings
 M-x bytecode-recompile-directory: recompile emacs lisp code (emacs package)
 M-: (colon): evaluate emacs lisp expression
 
+### Emacs lisp
+
 (add-to-list 'load-path "."): add working directory to load path (for bytecode compilation, etc.)
+
+### emacs executable (CLI)
+
+emacs --batch -L <load-path> -L <load-path> ... --eval <command>: evalute emacs command, using load-path, without using GUI.
+> For example, to compile an `.el` file using the current directory as load path, run `emacs --batch -L . --eval '(byte-compile-file "file-name.el")'`
+
+

@@ -4,6 +4,7 @@ A-/: auto complete
 C-x C-f: open a file
 C-x u: undo
 C-a: go to the beginning of line
+C-e: go to the end of line
 C-k: remove a line, start from the current cursor
 C-x C-c: quit
 C-x C-s: save
@@ -17,6 +18,9 @@ C-x 4 f: open a new file in a separate buffer
 C-x k: kill buffer
 C-u 0 <command>: pass 0 as argument to <command>
 C-h v: see variable current value
+M-f: move forward by one word
+M-b: move backward by one word
+M-<number> <command>: repeat <command> <number> times
 M-w: copy
 M-x replace-string: replace
 M-;: wrap the block in comment

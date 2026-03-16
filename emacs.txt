@@ -33,5 +33,3 @@ M-: (colon): evaluate emacs lisp expression
 
 emacs --batch -L <load-path> -L <load-path> ... --eval <command>: evalute emacs command, using load-path, without using GUI.
 > For example, to compile an `.el` file using the current directory as load path, run `emacs --batch -L . --eval '(byte-compile-file "file-name.el")'`
-
-

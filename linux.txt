@@ -1,2 +1,23 @@
+### Environment variables
+
+$USER: the current user
+
+### Executable configuration
+
 update-alternatives --config <name>: choose different vesions of alternatives
+
+### Directory processing
+
 find <repo> -maxdepth 1 -type f -name <pattern>: find files with pattern in the current directory
+
+### Text processing
+
+cut -d <delimiter> -f <field-list>: extract fields from line, where each line is a list of fields delimited by the given delimiter.
+> For example: `cut -d "," -f "1, 2"` on `foo, bar, baz` will return `foo, bar`
+
+### Groups and users
+
+id -g -n / groups: display groups where the current user belong to
+getent passwd: show all users on the current machine
+getent group: show all groups on the current machine
+usermod -aG <group> <user>: add user into group

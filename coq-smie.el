@@ -544,6 +544,7 @@ The point should be at the beginning of the command name."
            (progn (forward-char 1)
                   (let ((newtok (coq-smie-forward-token))) ; recursive call
                     (concat tok "." newtok)))))
+
      ((member tok '("." "..."))
       ;; swallow if qualid, call backward-token otherwise
       (cond
@@ -569,6 +570,16 @@ The point should be at the beginning of the command name."
             "with signature"
           (goto-char p)
           (save-excursion (coq-smie-backward-token)))))
+
+     ;; Interior "by" of a "<rel> proved by" clause: reuse the backward lexer's
+     ;; disambiguation so the forward and backward lexers agree on the token at
+     ;; this position.  Decline only on the tactic "by" (return nil), so it
+     ;; falls through to the "Com start" detection below.
+     ((and (equal tok "by")
+           (save-excursion
+             (backward-word)
+             (let ((bt (coq-smie-by-deambiguate)))
+               (unless (equal bt "by") bt)))))
 
      ((member tok '("transitivity" "symmetry" "reflexivity"))
       (let ((p (point)))

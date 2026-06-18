@@ -522,7 +522,7 @@ The point should be at the beginning of the command name."
           (concat tok newtok)))
        (t (save-excursion (coq-smie-backward-token))))) ;; recursive call
      ((or (string-match coq-bullet-regexp-nospace tok)
-          (member tok '("=>" ":=" "::=" "exists" "in" "as" "by" "∀" "∃" "→" "∨" "∧" ";"
+          (member tok '("=>" ":=" "::=" "exists" "in" "as" "∀" "∃" "→" "∨" "∧" ";"
                         "," ":" "eval" "return" "for")))
       ;; The important lexer for indentation's performance is the backward
       ;; lexer, so for the forward lexer we delegate to the backward one when
@@ -672,23 +672,24 @@ The point should be at the beginning of the command name."
     (if (and (equal (smie-default-backward-token) "proved")
              (member (smie-default-backward-token) '("transitivity" "symmetry" "reflexivity")))
         "xxx provedby"
-      (goto-char p)
-      (let* ((cmdstrt (save-excursion (coq-find-real-start)))
-             (istac (or (coq-smie-is-tactic)
-                        (coq-smie-is-ltacdef)
-                        (coq-smie-is-inside-parenthesized-tactic)))
-             (enclosing (coq-is-inside-enclosing cmdstrt)))
-        (cond
-         (istac "by tactic")
-         ((string-equal enclosing "{ subproof") "by tactic")
-         (t "by"))))))
+      ;; (goto-char p)
+      "by")))
+
+;; (let* ((cmdstrt (save-excursion (coq-find-real-start)))
+;;        (istac (or (coq-smie-is-tactic)
+;;                   (coq-smie-is-ltacdef)
+;;                   (coq-smie-is-inside-parenthesized-tactic)))
+;;        (enclosing (coq-is-inside-enclosing cmdstrt)))
+;;   (cond
+;;    (istac "by tactic")
+;;    ((string-equal enclosing "{ subproof") "by tactic")
+;;    (t "by")))
 
 (defun coq-smie-as-deambiguate ()
   (let ((prev-interesting
          (coq-smie-search-token-backward
           '("match" "lazymatch" "multimatch" "lazy_match" "multi_match"
-            "Morphism" "Relation" "." ". proofstart" "as"
-            "{ subproof" "} subproof")
+            "Morphism" "Relation" "." ". proofstart" "as" "{ subproof" "} subproof")
           nil
           '((("match" "lazy_match" "multi_match" "let") . "with")
             ("with" . "signature")))))
@@ -1177,7 +1178,7 @@ Typical values are 2 or 4."
        (exp "<- monadic" exp)
        ("(" exp ")") ("{|" exps "|}") ("{" exps "}")
        (exp "; tactic" exp) (exp "in tactic" exp) (exp "as" exp)
-       (exp "by tactic" exp) (exp "with" exp) (exp "|-" exp)
+       (exp "by" exp) (exp "with" exp) (exp "|-" exp)
        (exp ":" exp) (exp ":<" exp) (exp "," exp)
        (exp "->" exp) (exp "<->" exp) (exp "&" exp)
        (exp "/\\" exp) (exp "\\/" exp)
@@ -1276,7 +1277,7 @@ Typical values are 2 or 4."
       (left "=> fun") (left ", quantif") (assoc "then")
       (assoc "|| tactic") ;; FIXME: detecting "+ tactic" and "|| tactic" seems impossible
       (left "; tactic") (assoc "in tactic") (assoc "as")
-      (assoc "by tactic") (assoc "with")
+      (assoc "by") (assoc "with")
       (assoc "|-") (assoc ":" ":<") (left ",")
       (assoc "else")
       (assoc "->") (assoc "<->")
@@ -1407,7 +1408,7 @@ If nil, default to `proof-indent' if it exists or to `smie-indent-basic'."
   "Factorize tokens behaving the same \"smie-rules\"-wise (kind:after)."
   (cond
    ((coq-is-bullet-token tk) "after bullet")
-   ((member tk '("with" ":" "by tactic" "in tactic" "as" ",")) "tactic infix")
+   ((member tk '("with" ":" "by" "in tactic" "as" ",")) "tactic infix")
    ((member tk '("<:" "<+" "with module")) "modulespec infix") ;;  ":= inductive" ":= module" and other ":= xxx"
    ((member tk '(":= record")) tk) ;; avoids capture by next case
    ((string-prefix-p ":= " tk) "after :=")
@@ -1419,7 +1420,7 @@ If nil, default to `proof-indent' if it exists or to `smie-indent-basic'."
   "Factorize tokens behaving the same \"smie-rules\"-wise (kind:after)."
   (cond
    ((member tk '(". proofstart" ". modulestart")) "dot script parent open")
-   ((member tk '(":" "by tactic" "in tactic" "as" "with" ",")) "tactic infix")
+   ((member tk '(":" "by" "in tactic" "as" "with" ",")) "tactic infix")
    ((string-prefix-p ":= " tk) "before :=")
 
    ;; by default we pass the token name, but maybe it would be safer

@@ -194,6 +194,36 @@ attention to case differences."
            (coq-smie-search-token-backward '("#dummy#") strt)
            (> (point) strt)))))
 
+;; Indentation of very large command (e.g. a 150-line mutual Inductive) is
+;; slow: every deambiguation re-scanned the whole command token-by-token,
+;; and `coq-find-real-start' is recomputed hundreds of times per line.
+;; Fix: memoize `coq-find-real-start' per (point, modification-tick).
+
+(defvar-local coq-smie-find-real-start-cache nil
+  "Cache for `coq-find-real-start'.
+A cons (MODTICK . HASHTABLE) where HASHTABLE maps a call-site point to the
+command-start point. Invalidated whenever the buffer is modified.")
+
+(defun coq-smie-find-real-start (orig &rest args)
+  "Memoize `coq-find-real-start' for SMIE indentation.
+This is :around advice, call ORIG with ARGS only on a cache miss. Results are
+cached in `coq-smie-find-real-start-cache'."
+  (let ((tick (buffer-chars-modified-tick))
+        (pt (point)))
+    (unless (and coq-smie-find-real-start-cache
+                 (eq (car coq-smie-find-real-start-cache) tick))
+      (setq coq-smie-find-real-start-cache (cons tick (make-hash-table :test 'eq))))
+    (let* ((tbl (cdr coq-smie-find-real-start-cache))
+           (cached (gethash pt tbl 'miss)))
+      (if (eq cached 'miss)
+          (let ((res (apply orig args)))
+            (puthash pt res tbl)
+            res)
+        (goto-char cached)
+        cached))))
+
+(advice-add 'coq-find-real-start :around #'coq-smie-find-real-start)
+
 (defun coq-smie-.-deambiguate ()
   "Return the token of the command terminator of the current command.
 For example in:
@@ -668,12 +698,10 @@ The point should be at the beginning of the command name."
         ";")))))
 
 (defun coq-smie-by-deambiguate ()
-  (let ((p (point)))
-    (if (and (equal (smie-default-backward-token) "proved")
-             (member (smie-default-backward-token) '("transitivity" "symmetry" "reflexivity")))
-        "xxx provedby"
-      ;; (goto-char p)
-      "by")))
+  (if (and (equal (smie-default-backward-token) "proved")
+           (member (smie-default-backward-token) '("transitivity" "symmetry" "reflexivity")))
+      "xxx provedby"
+    "by"))
 
 ;; (let* ((cmdstrt (save-excursion (coq-find-real-start)))
 ;;        (istac (or (coq-smie-is-tactic)
@@ -783,28 +811,6 @@ The point should be at the beginning of the command name."
         (smie-default-backward-token)
         (if (looking-at "[0-9]") "do ltac"
           "do")))
-
-
-                                        ; Same for "->" : rewrite or intro arg or term's implication
-                                        ; FIXME: user defined arrows will be considered a term
-     ((equal tok "->")
-      (save-excursion
-        (let ((backtok (coq-smie-search-token-backward '("intro" "intros" "rewrite" "."))))
-          (cond
-           ((equal backtok ".") "->")
-           ((equal backtok nil) "->")
-           (t "-> tactic")))))
-
-     ;; "<-" is a commonly used token for monadic notations, we should
-     ;; discrimnate between "rewrite ... <-" and other uses of "<-".
-     ((equal tok "<-")
-      (save-excursion
-        (let ((backtok (coq-smie-search-token-backward '("intro" "intros" "rewrite" "."))))
-          (cond
-           ((equal backtok ".") "<-")
-           ((equal backtok nil) "<-")
-           (t "<- tactic")))))
-
 
      ((equal tok "Module")
       (save-excursion (coq-smie-module-deambiguate)))

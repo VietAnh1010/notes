@@ -35,5 +35,18 @@ M-: (colon): evaluate emacs lisp expression
 
 ### emacs executable (CLI)
 
-emacs --batch -L <load-path> -L <load-path> ... --eval <command>: evalute emacs command, using load-path, without using GUI.
+emacs --batch -L <load-path> -L <load-path> ... --eval <command>: evalute emacs command, using load-path, without using GUI
 > For example, to compile an `.el` file using the current directory as load path, run `emacs --batch -L . --eval '(byte-compile-file "file-name.el")'`
+
+### Proof General (installing a fork from a local checkout)
+
+M-x package-delete RET proof-general RET: remove the MELPA copy
+git clone <fork-url> <checkout> -b <branch>: clone the fork into its own directory, separate from the tree you develop in
+cd <checkout> && make clean; make: byte-compile the checkout (prepend EMACS=<path-to-emacs> if make picks the wrong emacs)
+C-u M-x package-vc-install-from-checkout RET <checkout> RET proof-general RET: link the checkout into the ELPA directory (write nothing to the init file)
+> The C-u is required. Without it the package name is inferred from the base name of <checkout>
+
+M-x package-vc-rebuild RET proof-general RET: rebuild after updating the checkout
+C-h v proof-home-directory: show which PG is loaded
+> No require or load line is needed: proof-general-autoloads.el derives the PG root from load-file-name, so the directory name is irrelevant
+> Merge upstream with git merge -X ignore-space-change master: coq-smie.el is indented with spaces in the fork and tabs upstream. Check for leaked tabs with grep -cP '^\t' coq/coq-smie.el

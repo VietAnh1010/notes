@@ -57,14 +57,15 @@ own conventions and the surrounding file's style.
 
 ## Persistence
 
-By default this skill applies to one reply: the turn that triggered it,
-including every tool call in it, up to returning control to the user.
+By default this skill applies to the whole session: the turn that triggered it
+and every later turn, until the user cancels it. Cancel only on an explicit
+request to stop being concise ("there is no need to be concise anymore",
+"stop being concise", "you can be verbose now"); after that the skill is
+inactive until invoked again. A request for more detail on one topic ("expand
+on that", "give me the full trace") widens that answer only.
 
-It applies for the whole session if the user says "for the rest of this
-session" or an equivalent ("keep this up", "from now on", "stay concise").
-Once session-wide, it remains in effect until the user cancels it explicitly.
-
-Re-invoking the skill while session-wide mode is active has no effect.
+Restrict the skill to a single reply if the user asks for that explicitly
+("just this once"). Re-invoking it while it is already active has no effect.
 
 ## Do not overcorrect
 

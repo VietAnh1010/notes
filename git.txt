@@ -1,0 +1,1 @@
+git ls-files --eol | grep -E 'crlf|mixed': list tracked files with CRLF or mixed line endings

@@ -3,30 +3,30 @@
 A-/: auto complete
 C-x C-f: open a file
 C-x u: undo
-C-a: go to the beginning of line
-C-e: go to the end of line
-C-k: remove a line, start from the current cursor
+C-a: go to line start
+C-e: go to line end
+C-k: cut from cursor to end of line
 C-x C-c: quit
 C-x C-s: save
 C-w: cut
-C-y: pastes
-C-s: search, then C-s for next match
+C-y: paste
+C-s: search forward; repeat for next match
 C-r: search backward
 C-x o: go to other window
 C-x <number>: split window
-C-x 4 f: open a new file in a separate buffer
+C-x 4 f: open a file in another window
 C-x k: kill buffer
 C-u 0 <command>: pass 0 as argument to <command>
-C-h v: see variable current value
+C-h v: show a variable's value
 M-f: move forward by one word
 M-b: move backward by one word
 M-<number> <command>: repeat <command> <number> times
 M-w: copy
 M-x replace-string: replace
-M-;: wrap the block in comment
+M-;: comment or uncomment the region
 M-x term: open terminal, using terminal bindings
 M-x shell: open terminal, using emacs bindings
-M-x bytecode-recompile-directory: recompile emacs lisp code (emacs package)
+M-x byte-recompile-directory: recompile the Emacs Lisp files in a directory
 M-: (colon): evaluate emacs lisp expression
 
 ### Emacs lisp
@@ -35,7 +35,7 @@ M-: (colon): evaluate emacs lisp expression
 
 ### emacs executable (CLI)
 
-emacs --batch -L <load-path> -L <load-path> ... --eval <command>: evalute emacs command, using load-path, without using GUI
+emacs --batch -L <load-path> -L <load-path> ... --eval <command>: evaluate an expression without the GUI, with the given load paths
 > For example, to compile an `.el` file using the current directory as load path, run `emacs --batch -L . --eval '(byte-compile-file "file-name.el")'`
 
 ### Proof General (installing a fork from a local checkout)

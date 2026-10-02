@@ -7,4 +7,4 @@ hg resolve
 hg incoming
 hg pull
 
-tips: don't use branches in hg. Use bookmark instead if neccessary
+Tip: use bookmarks instead of branches in hg

@@ -1,1 +1,2 @@
 git ls-files --eol | grep -E 'crlf|mixed': list tracked files with CRLF or mixed line endings
+git -C <dir> <command>: run a git command as if started in <dir>, e.g. git -C ~/notes status

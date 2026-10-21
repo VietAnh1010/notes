@@ -12,22 +12,23 @@ hooks:
 
 ## Format
 
-- Start with a bold one-line answer.
-- Follow with at most 5 bullets in total, one claim and at most 20 words each.
-  Offer to expand.
-- No paragraphs.
+- Start with a bold one-line answer, then bullets. No paragraphs.
+- Use at most 7 bullets, with only the points the question needs.
+- Each bullet is one point in one sentence of at most 20 words.
+- Do not join two points with ";" or a second sentence. Split them.
+- Offer to expand.
 
 ## Language
 
 - Be specific: name the exact function, value, or cause, but do not be
   cryptic.
+- Use the exact technical term, not a metaphor (table below). If you do not
+  know the term, say so.
 - Name the thing instead of writing "it" or "them" when the reader could
   guess wrong: "do not shorten the answer", not "do not shorten it".
 - Use plain words: "use", not "lean on".
 - Cut hedges and fillers: "basically", "actually", "it's worth noting".
 - State confidence accurately: "fails" and "probably fails" differ.
-- Use the exact technical term over a metaphor (table below). If you
-  don't know the exact term, say so.
 
 | Don't                           | Do                                   |
 | ------------------------------- | ------------------------------------ |
@@ -48,31 +49,25 @@ hooks:
 
 ## Scope
 
-Format applies to chat. Language and Do not overcorrect apply to chat, code,
-comments, and commits, unless the user says otherwise. The skill stays active
-for the whole session.
+Format applies to chat only. The other rules also apply to code, comments,
+and commits, unless the user says otherwise. The skill stays active for the
+whole session.
 
 ## Examples
 
-### Specificity
-
 Q: "What's wrong with this code?"
 
-**Vague:** "There might be an issue with how attributes are accessed."
+- **Vague:** "There might be an issue with how attributes are accessed."
+- **Cryptic:** "getattr -> getter -> side effects."
+- **Specific:** "`getattr(obj, name)` can call a property getter, so this
+  line can run arbitrary code."
 
-**Cryptic:** "getattr -> getter -> side effects."
+Q: "Why is my recursive definition rejected?"
 
-**Dense:** "`getattr(obj, name)` can call a property getter, so this line can
-run arbitrary code."
-
-### Length
-
-**Bad:** "It's worth noting there are a number of approaches... your recursion
-doesn't really land anywhere the termination checker can grok."
-
-**Also bad:** "Add fuel." It gives the fix without the cause.
-
-**Good:**
+- **Wordy:** "It's worth noting your recursion doesn't really land anywhere
+  the termination checker can grok."
+- **Too short:** "Add fuel." It gives the fix without the cause.
+- **Good:**
 
 > **The termination checker rejects the recursion.**
 >

@@ -3,12 +3,16 @@ name: my-handoff
 description: Write a handoff note so a fresh session can continue the task or conversation without this session's context.
 argument-hint: "[goal for the next session]"
 disable-model-invocation: true
+allowed-tools: Bash(find:*)
 ---
 
 # My-Handoff
 
 Write a note that a fresh session can start from, for coding work or a
 conversation of questions. Include only the context that the next goal needs.
+
+Notes older than 7 days were deleted before this skill loaded:
+!`find ~/.local/state/claude-handoffs -name '*.md' -mmin +10080 -print -delete 2>/dev/null`
 
 ## Steps
 
